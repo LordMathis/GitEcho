@@ -4,7 +4,7 @@ import (
 	git "github.com/go-git/go-git/v5"
 )
 
-func Clone(url string, cloneOptions *git.CloneOptions, dir string) (*git.Repository, error) {
+func Clone(cloneOptions *git.CloneOptions, dir string) (*git.Repository, error) {
 	repo, err := git.PlainClone(dir, false, cloneOptions)
 	return repo, err
 }

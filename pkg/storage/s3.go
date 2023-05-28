@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -59,10 +58,8 @@ func (s *s3Client) Push(repo *common.RepositoryBackupConfig) error {
 
 			fmt.Println(result)
 
-			return nil
+			return err
 		})
 
-	if err != nil {
-		log.Println(err)
-	}
+	return err
 }

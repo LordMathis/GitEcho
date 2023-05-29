@@ -15,27 +15,27 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/common"
 )
 
-type s3Client struct {
+type S3Client struct {
 	client *s3.Client
 	bucket string
 }
 
-func newS3Client(bucket string) (*s3Client, error) {
+func NewS3Client(bucket string) (*S3Client, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
 	client := s3.NewFromConfig(cfg)
-	return &s3Client{
+	return &S3Client{
 		client: client,
 		bucket: bucket,
 	}, nil
 }
 
-func (s *s3Client) Push(repo *common.RepositoryBackupConfig) error {
+func (s *S3Client) Push(backup_repo *common.BackupRepo) error {
 	uploader := manager.NewUploader(s.client)
 
-	err := filepath.WalkDir(repo.LocalPath,
+	err := filepath.WalkDir(backup_repo.LocalPath,
 		func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err

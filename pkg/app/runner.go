@@ -9,7 +9,7 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-func Run(repo *common.RepositoryBackupConfig) error {
+func Run(repo *common.BackupRepo) error {
 
 	if _, err := os.Stat(repo.LocalPath); os.IsNotExist(err) {
 		return err

@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.67
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.33.1
 	github.com/go-git/go-git/v5 v5.6.1
+	github.com/lib/pq v1.10.9
 )
 
 require (

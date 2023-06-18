@@ -1,22 +1,34 @@
 package git
 
 import (
+	"os"
+
 	git "github.com/go-git/go-git/v5"
 )
 
-func Clone(cloneOptions *git.CloneOptions, dir string) (*git.Repository, error) {
-	repo, err := git.PlainClone(dir, false, cloneOptions)
-	return repo, err
-}
-
 func Pull(repo *git.Repository) error {
-	worktree, err := repo.Worktree()
-
+	wt, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
 
-	return worktree.Pull(&git.PullOptions{
+	err = wt.Pull(&git.PullOptions{
 		RemoteName: "origin",
+		Progress:   os.Stdout,
 	})
+
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		return err
+	}
+
+	return nil
+}
+
+func Open(localPath string) (*git.Repository, error) {
+	repo, err := git.PlainOpen(localPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return repo, nil
 }

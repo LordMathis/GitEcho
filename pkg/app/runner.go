@@ -25,7 +25,7 @@ func Run(repo *common.BackupRepo) error {
 		return err
 	}
 
-	s3Client, err := s3storage.NewS3Client(repo.S3bucket)
+	s3Client, err := s3storage.NewS3Client(repo.S3Bucket)
 
 	if err != nil {
 		return err

@@ -52,7 +52,7 @@ func (s *S3Client) Push(backup_repo *common.BackupRepo) error {
 			defer uploadFile.Close()
 
 			result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
-				Bucket: aws.String(backup_repo.S3bucket),
+				Bucket: aws.String(backup_repo.S3Bucket),
 				Key:    aws.String(path),
 				Body:   uploadFile,
 			})

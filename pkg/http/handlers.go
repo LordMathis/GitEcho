@@ -7,17 +7,8 @@ import (
 	"os"
 
 	"github.com/LordMathis/GitEcho/pkg/common"
+	"github.com/LordMathis/GitEcho/pkg/db"
 )
-
-type backupRepoRequest struct {
-	Name                  string `json:"name"`
-	RemoteUrl             string `json:"remote_url"`
-	PullInterval          int    `json:"pull_interval"`
-	S3url                 string `json:"s3_url"`
-	S3bucket              string `json:"s3_bucket"`
-	AWS_ACCESS_KEY_ID     string `json:"aws_access_key_id"`
-	AWS_SECRET_ACCESS_KEY string `json:"aws_secret_access_key"`
-}
 
 func handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 
@@ -25,24 +16,23 @@ func handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 
-	var repoRequest backupRepoRequest
+	var backup_repo common.BackupRepo
 
-	err := json.NewDecoder(r.Body).Decode(&repoRequest)
+	err := json.NewDecoder(r.Body).Decode(&backup_repo)
 	if err != nil {
 		log.Fatalln("There was an error decoding the request body into the struct")
 	}
 
-	local_path := os.Getenv("GITECHO_DATA_PATH") + "/" + repoRequest.Name
+	local_path := os.Getenv("GITECHO_DATA_PATH") + "/" + backup_repo.Name
+	backup_repo.LocalPath = local_path
 
-	backup_repo, err := common.NewBackupRepo(
-		repoRequest.Name,
-		repoRequest.RemoteUrl,
-		repoRequest.PullInterval,
-		repoRequest.S3url,
-		repoRequest.S3bucket,
-		local_path,
-	)
+	err = backup_repo.InitializeRepo()
+	if err != nil {
+		log.Fatalln("There was an error creating the backup repo configuration")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 
+	err = db.DB.InsertBackupRepo(backup_repo)
 	if err != nil {
 		log.Fatalln("There was an error creating the backup repo configuration")
 		w.WriteHeader(http.StatusInternalServerError)

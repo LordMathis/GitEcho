@@ -14,6 +14,8 @@ type Database struct {
 	*sql.DB
 }
 
+var DB *Database
+
 func ConnectDB() (*Database, error) {
 
 	host := os.Getenv("DB_HOST")
@@ -78,7 +80,7 @@ func (db *Database) InsertBackupRepo(backup_repo common.BackupRepo) error {
 	defer stmt.Close()
 
 	// Execute the INSERT statement
-	_, err = stmt.Exec(backup_repo.Name, config.RemoteUrl, config.PullInterval, config.S3url, config.S3bucket, config.LocalPath)
+	_, err = stmt.Exec(backup_repo.Name, backup_repo.RemoteUrl, backup_repo.PullInterval, backup_repo.S3URL, backup_repo.S3Bucket, backup_repo.LocalPath)
 	if err != nil {
 		return err
 	}
@@ -96,22 +98,22 @@ func (db *Database) GetBackupRepoConfigByName(name string) (common.BackupRepo, e
 		WHERE name = $1
 	`)
 	if err != nil {
-		return BackupRepo{}, err
+		return common.BackupRepo{}, err
 	}
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var config BackupRepo
+	var backup_repo common.BackupRepo
 	err = stmt.QueryRow(name).Scan(
-		&config.RemoteUrl,
-		&config.PullInterval,
-		&config.S3url,
-		&config.S3bucket,
-		&config.LocalPath,
+		&backup_repo.RemoteUrl,
+		&backup_repo.PullInterval,
+		&backup_repo.S3URL,
+		&backup_repo.S3Bucket,
+		&backup_repo.LocalPath,
 	)
 	if err != nil {
-		return BackupRepo{}, err
+		return common.BackupRepo{}, err
 	}
 
-	return config, nil
+	return backup_repo, nil
 }

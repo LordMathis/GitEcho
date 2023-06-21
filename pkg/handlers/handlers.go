@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"encoding/json"
@@ -6,23 +6,23 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/LordMathis/GitEcho/pkg/app"
-	"github.com/LordMathis/GitEcho/pkg/common"
-	"github.com/LordMathis/GitEcho/pkg/db"
+	"github.com/LordMathis/GitEcho/pkg/backup"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/database"
 )
 
 type APIHandler struct {
-	dispatcher *app.BackupDispatcher
-	db         *db.Database
+	Dispatcher *backup.BackupDispatcher
+	Db         *database.Database
 }
 
-func (a *APIHandler) handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
+func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 
-	var backup_repo common.BackupRepo
+	var backup_repo backuprepo.BackupRepo
 
 	err := json.NewDecoder(r.Body).Decode(&backup_repo)
 	if err != nil {
@@ -38,13 +38,13 @@ func (a *APIHandler) handleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	err = a.db.InsertBackupRepo(backup_repo)
+	err = a.Db.InsertBackupRepo(backup_repo)
 	if err != nil {
 		log.Fatalln("There was an error creating the backup repo configuration")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	a.dispatcher.AddRepository(backup_repo)
+	a.Dispatcher.AddRepository(backup_repo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

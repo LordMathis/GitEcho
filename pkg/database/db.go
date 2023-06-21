@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/LordMathis/GitEcho/pkg/common"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
 
 type Database struct {
@@ -66,7 +66,7 @@ func (db *Database) CloseDB() {
 	db.Close()
 }
 
-func (db *Database) InsertBackupRepo(backup_repo common.BackupRepo) error {
+func (db *Database) InsertBackupRepo(backup_repo backuprepo.BackupRepo) error {
 	// Prepare the INSERT statement
 	stmt, err := db.DB.Prepare(`
 		INSERT INTO backup_repo (name, remote_url, pull_interval, s3_url, s3_bucket, local_path)
@@ -88,7 +88,7 @@ func (db *Database) InsertBackupRepo(backup_repo common.BackupRepo) error {
 	return nil
 }
 
-func (db *Database) GetBackupRepoConfigByName(name string) (common.BackupRepo, error) {
+func (db *Database) GetBackupRepoConfigByName(name string) (backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
 	stmt, err := db.DB.Prepare(`
 		SELECT remote_url, pull_interval, s3_url, s3_bucket, local_path
@@ -96,12 +96,12 @@ func (db *Database) GetBackupRepoConfigByName(name string) (common.BackupRepo, e
 		WHERE name = $1
 	`)
 	if err != nil {
-		return common.BackupRepo{}, err
+		return backuprepo.BackupRepo{}, err
 	}
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var backup_repo common.BackupRepo
+	var backup_repo backuprepo.BackupRepo
 	err = stmt.QueryRow(name).Scan(
 		&backup_repo.RemoteUrl,
 		&backup_repo.PullInterval,
@@ -110,7 +110,7 @@ func (db *Database) GetBackupRepoConfigByName(name string) (common.BackupRepo, e
 		&backup_repo.LocalPath,
 	)
 	if err != nil {
-		return common.BackupRepo{}, err
+		return backuprepo.BackupRepo{}, err
 	}
 
 	return backup_repo, nil

@@ -1,16 +1,16 @@
-package app
+package backup
 
 import (
 	"log"
 	"sync"
 	"time"
 
-	"github.com/LordMathis/GitEcho/pkg/common"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
 
 // BackupDispatcher is responsible for managing the backup process for multiple repositories.
 type BackupDispatcher struct {
-	repositories []common.BackupRepo
+	repositories []backuprepo.BackupRepo
 	stopChan     chan struct{}
 	wg           sync.WaitGroup
 }
@@ -18,13 +18,13 @@ type BackupDispatcher struct {
 // NewBackupDispatcher creates a new BackupDispatcher instance.
 func NewBackupDispatcher() *BackupDispatcher {
 	return &BackupDispatcher{
-		repositories: make([]common.BackupRepo, 0),
+		repositories: make([]backuprepo.BackupRepo, 0),
 		stopChan:     make(chan struct{}),
 	}
 }
 
 // AddRepository adds a new repository to the backup dispatcher.
-func (d *BackupDispatcher) AddRepository(repo common.BackupRepo) {
+func (d *BackupDispatcher) AddRepository(repo backuprepo.BackupRepo) {
 	d.repositories = append(d.repositories, repo)
 }
 
@@ -56,7 +56,7 @@ func (d *BackupDispatcher) Stop() {
 }
 
 // scheduleBackup schedules the backup process for a single repository.
-func (d *BackupDispatcher) scheduleBackup(repo *common.BackupRepo) {
+func (d *BackupDispatcher) scheduleBackup(repo *backuprepo.BackupRepo) {
 	go func() {
 		for {
 			select {

@@ -14,8 +14,6 @@ type Database struct {
 	*sql.DB
 }
 
-var DB *Database
-
 func ConnectDB() (*Database, error) {
 
 	host := os.Getenv("DB_HOST")

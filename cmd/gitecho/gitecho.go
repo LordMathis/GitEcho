@@ -10,14 +10,14 @@ import (
 
 func main() {
 	var err error
-	db.DB, err = db.ConnectDB()
+	database, err := db.ConnectDB()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.DB.CloseDB()
+	defer database.CloseDB()
 
 	dispatcher := app.NewBackupDispatcher()
 	dispatcher.Start()
 
-	http.Start()
+	http.Start(dispatcher, database)
 }

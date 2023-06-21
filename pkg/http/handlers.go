@@ -6,11 +6,17 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/LordMathis/GitEcho/pkg/app"
 	"github.com/LordMathis/GitEcho/pkg/common"
 	"github.com/LordMathis/GitEcho/pkg/db"
 )
 
-func handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
+type APIHandler struct {
+	dispatcher *app.BackupDispatcher
+	db         *db.Database
+}
+
+func (a *APIHandler) handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -32,11 +38,13 @@ func handleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	err = db.DB.InsertBackupRepo(backup_repo)
+	err = a.db.InsertBackupRepo(backup_repo)
 	if err != nil {
 		log.Fatalln("There was an error creating the backup repo configuration")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
+	a.dispatcher.AddRepository(backup_repo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

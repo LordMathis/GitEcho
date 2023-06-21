@@ -1,37 +1,30 @@
 package app
 
 import (
-	"os"
-
 	"github.com/LordMathis/GitEcho/pkg/common"
-	gitclient "github.com/LordMathis/GitEcho/pkg/git"
-	s3storage "github.com/LordMathis/GitEcho/pkg/storage"
+	s3client "github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/go-git/go-git/v5"
 )
 
-func Run(repo *common.BackupRepo) error {
-
-	if _, err := os.Stat(repo.LocalPath); os.IsNotExist(err) {
-		return err
-	}
-
-	err := gitclient.Pull(repo.SrcRepo)
-
-	if err != nil && err == git.NoErrAlreadyUpToDate {
-		return nil
-	}
-
+// BackupAndUpload takes a BackupRepoConfig, pulls the changes, and uploads them to S3.
+func BackupAndUpload(repoConfig common.BackupRepo) error {
+	// Get the repository's worktree
+	worktree, err := repoConfig.SrcRepo.Worktree()
 	if err != nil {
 		return err
 	}
 
-	s3Client, err := s3storage.NewS3Client(repo.S3Bucket)
-
-	if err != nil {
+	// Pull the changes from the remote repository
+	err = worktree.Pull(&git.PullOptions{})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
 	}
 
-	s3Client.Push(repo)
+	// Upload the local directory to S3
+	err = s3client.UploadDirectory(repoConfig.S3Bucket, repoConfig.LocalPath)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

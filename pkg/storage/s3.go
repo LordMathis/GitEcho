@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -57,8 +56,12 @@ func UploadDirectory(bucketName, directoryPath string) error {
 		}
 		defer f.Close()
 
-		// Prepare the S3 object key
-		key := filepath.Join("your-prefix", strings.TrimPrefix(path, directoryPath)) // Replace "your-prefix" with your desired S3 key prefix
+		// Prepare the S3 object key by preserving the directory structure
+		relPath, err := filepath.Rel(directoryPath, path)
+		if err != nil {
+			return err
+		}
+		key := filepath.Join(relPath)
 
 		// Create the input parameters for the S3 PutObject operation
 		input := &s3.PutObjectInput{

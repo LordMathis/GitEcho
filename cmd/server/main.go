@@ -18,6 +18,17 @@ func main() {
 	defer database.CloseDB()
 
 	dispatcher := backup.NewBackupDispatcher()
+
+	backupRepos, err := database.GetAllBackupRepos()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, backupRepo := range backupRepos {
+		dispatcher.AddRepository(*backupRepo)
+	}
+
 	dispatcher.Start()
 
 	apiHandler := handlers.APIHandler{

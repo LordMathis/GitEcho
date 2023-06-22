@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	_ "github.com/lib/pq"
@@ -88,21 +89,22 @@ func (db *Database) InsertBackupRepo(backup_repo backuprepo.BackupRepo) error {
 	return nil
 }
 
-func (db *Database) GetBackupRepoConfigByName(name string) (backuprepo.BackupRepo, error) {
+func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
 	stmt, err := db.DB.Prepare(`
-		SELECT remote_url, pull_interval, s3_url, s3_bucket, local_path
+		SELECT name, remote_url, pull_interval, s3_url, s3_bucket, local_path
 		FROM backup_repo
 		WHERE name = $1
 	`)
 	if err != nil {
-		return backuprepo.BackupRepo{}, err
+		return nil, err
 	}
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var backup_repo backuprepo.BackupRepo
+	var backup_repo *backuprepo.BackupRepo
 	err = stmt.QueryRow(name).Scan(
+		&backup_repo.Name,
 		&backup_repo.RemoteUrl,
 		&backup_repo.PullInterval,
 		&backup_repo.S3URL,
@@ -110,8 +112,50 @@ func (db *Database) GetBackupRepoConfigByName(name string) (backuprepo.BackupRep
 		&backup_repo.LocalPath,
 	)
 	if err != nil {
-		return backuprepo.BackupRepo{}, err
+		return nil, err
 	}
 
+	backup_repo.InitializeRepo()
+
 	return backup_repo, nil
+}
+
+// GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
+func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
+	query := "SELECT name, remote_url, pull_interval, s3_url, s3_bucket, local_path FROM backup_repo"
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Printf("Failed to execute query: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var backupRepos []*backuprepo.BackupRepo
+
+	for rows.Next() {
+		var backupRepo *backuprepo.BackupRepo
+		err := rows.Scan(
+			&backupRepo.Name,
+			&backupRepo.RemoteUrl,
+			&backupRepo.PullInterval,
+			&backupRepo.S3URL,
+			&backupRepo.S3Bucket,
+			&backupRepo.LocalPath,
+		)
+		if err != nil {
+			log.Printf("Failed to scan row: %v", err)
+			return nil, err
+		}
+
+		backupRepo.InitializeRepo()
+
+		backupRepos = append(backupRepos, backupRepo)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("Error occurred while iterating over rows: %v", err)
+		return nil, err
+	}
+
+	return backupRepos, nil
 }

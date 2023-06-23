@@ -15,6 +15,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = database.MigrateDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	defer database.CloseDB()
 
 	dispatcher := backup.NewBackupDispatcher()

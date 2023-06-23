@@ -3,11 +3,10 @@ package database
 import (
 	"fmt"
 	"os"
-	"reflect"
-	"strings"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	migrate "github.com/rubenv/sql-migrate"
 
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
@@ -17,7 +16,6 @@ type Database struct {
 }
 
 func ConnectDB() (*Database, error) {
-
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
@@ -38,30 +36,8 @@ func ConnectDB() (*Database, error) {
 		return nil, err
 	}
 
-	// Create the database if it doesn't exist
 	createDBQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbname)
 	_, err = db.Exec(createDBQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the backup_repo table if it doesn't exist
-	configType := reflect.TypeOf(backuprepo.BackupRepo{})
-	var columns []string
-	for i := 0; i < configType.NumField(); i++ {
-		field := configType.Field(i)
-		dbTag := field.Tag.Get("db")
-		column := strings.Split(dbTag, ",")[0]
-		columns = append(columns, column)
-	}
-
-	createTableQuery := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS backup_repo (
-			%s
-		)
-	`, strings.Join(columns, ",\n"))
-
-	_, err = db.Exec(createTableQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +47,24 @@ func ConnectDB() (*Database, error) {
 
 func (db *Database) CloseDB() {
 	db.Close()
+}
+
+func (db *Database) MigrateDB() error {
+	// Obtain *sql.DB from *sqlx.DB
+	sqlDB := db.DB.DB
+
+	// Set up the migration source
+	migrations := &migrate.FileMigrationSource{
+		Dir: "path/to/migrations",
+	}
+
+	// Apply migrations
+	_, err := migrate.Exec(sqlDB, "postgres", migrations, migrate.Up)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {

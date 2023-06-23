@@ -1,18 +1,19 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
 	"os"
+	"reflect"
+	"strings"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
 
 type Database struct {
-	*sql.DB
+	*sqlx.DB
 }
 
 func ConnectDB() (*Database, error) {
@@ -26,7 +27,7 @@ func ConnectDB() (*Database, error) {
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := sqlx.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
 	}
@@ -45,16 +46,21 @@ func ConnectDB() (*Database, error) {
 	}
 
 	// Create the backup_repo table if it doesn't exist
-	createTableQuery := `
+	configType := reflect.TypeOf(backuprepo.BackupRepo{})
+	var columns []string
+	for i := 0; i < configType.NumField(); i++ {
+		field := configType.Field(i)
+		dbTag := field.Tag.Get("db")
+		column := strings.Split(dbTag, ",")[0]
+		columns = append(columns, column)
+	}
+
+	createTableQuery := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS backup_repo (
-			name TEXTPRIMARY KEY,
-			remote_url TEXT,
-			pull_interval INT,
-			s3_url TEXT,
-			s3_bucket TEXT,
-			local_path TEXT
+			%s
 		)
-	`
+	`, strings.Join(columns, ",\n"))
+
 	_, err = db.Exec(createTableQuery)
 	if err != nil {
 		return nil, err
@@ -67,11 +73,11 @@ func (db *Database) CloseDB() {
 	db.Close()
 }
 
-func (db *Database) InsertBackupRepo(backup_repo backuprepo.BackupRepo) error {
+func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {
 	// Prepare the INSERT statement
-	stmt, err := db.DB.Prepare(`
+	stmt, err := db.DB.PrepareNamed(`
 		INSERT INTO backup_repo (name, remote_url, pull_interval, s3_url, s3_bucket, local_path)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES (:name, :remote_url, :pull_interval, :s3_url, :s3_bucket, :local_path)
 	`)
 	if err != nil {
 		return err
@@ -79,7 +85,7 @@ func (db *Database) InsertBackupRepo(backup_repo backuprepo.BackupRepo) error {
 	defer stmt.Close()
 
 	// Execute the INSERT statement
-	_, err = stmt.Exec(backup_repo.Name, backup_repo.RemoteUrl, backup_repo.PullInterval, backup_repo.S3URL, backup_repo.S3Bucket, backup_repo.LocalPath)
+	_, err = stmt.Exec(backupRepo)
 	if err != nil {
 		return err
 	}
@@ -91,8 +97,8 @@ func (db *Database) InsertBackupRepo(backup_repo backuprepo.BackupRepo) error {
 
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
-	stmt, err := db.DB.Prepare(`
-		SELECT name, remote_url, pull_interval, s3_url, s3_bucket, local_path
+	stmt, err := db.DB.Preparex(`
+		SELECT *
 		FROM backup_repo
 		WHERE name = $1
 	`)
@@ -102,60 +108,29 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var backup_repo *backuprepo.BackupRepo
-	err = stmt.QueryRow(name).Scan(
-		&backup_repo.Name,
-		&backup_repo.RemoteUrl,
-		&backup_repo.PullInterval,
-		&backup_repo.S3URL,
-		&backup_repo.S3Bucket,
-		&backup_repo.LocalPath,
-	)
+	var backupRepo backuprepo.BackupRepo
+	err = stmt.Get(&backupRepo, name)
 	if err != nil {
 		return nil, err
 	}
 
-	backup_repo.InitializeRepo()
+	backupRepo.InitializeRepo()
 
-	return backup_repo, nil
+	return &backupRepo, nil
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
 func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
-	query := "SELECT name, remote_url, pull_interval, s3_url, s3_bucket, local_path FROM backup_repo"
-	rows, err := db.Query(query)
+	query := "SELECT * FROM backup_repo_config"
+	backup_repos := []*backuprepo.BackupRepo{}
+	err := db.Select(&backup_repos, query)
 	if err != nil {
-		log.Printf("Failed to execute query: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	var backupRepos []*backuprepo.BackupRepo
-
-	for rows.Next() {
-		var backupRepo *backuprepo.BackupRepo
-		err := rows.Scan(
-			&backupRepo.Name,
-			&backupRepo.RemoteUrl,
-			&backupRepo.PullInterval,
-			&backupRepo.S3URL,
-			&backupRepo.S3Bucket,
-			&backupRepo.LocalPath,
-		)
-		if err != nil {
-			log.Printf("Failed to scan row: %v", err)
-			return nil, err
-		}
-
-		backupRepo.InitializeRepo()
-
-		backupRepos = append(backupRepos, backupRepo)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Printf("Error occurred while iterating over rows: %v", err)
 		return nil, err
 	}
 
-	return backupRepos, nil
+	for _, backup_repo := range backup_repos {
+		backup_repo.InitializeRepo()
+	}
+
+	return backup_repos, nil
 }

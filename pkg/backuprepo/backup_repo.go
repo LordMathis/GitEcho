@@ -9,13 +9,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string `json:"name"`
+	Name         string `json:"name" db:"name"`
 	SrcRepo      *git.Repository
-	RemoteUrl    string `json:"remote_url"`
-	PullInterval int    `json:"pull_interval"`
-	S3URL        string `json:"s3_url"`
-	S3Bucket     string `json:"s3_bucket"`
-	LocalPath    string
+	RemoteUrl    string `json:"remote_url" db:"remote_url"`
+	PullInterval int    `json:"pull_interval" db:"pull_interval"`
+	S3URL        string `json:"s3_url" db:"s3_url"`
+	S3Bucket     string `json:"s3_bucket" db:"s3_bucket"`
+	LocalPath    string `db:"local_path"`
 }
 
 // NewBackupRepo creates a new BackupRepo instance

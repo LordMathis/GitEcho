@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
@@ -48,4 +50,19 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
+}
+
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	templatePath := filepath.Join("templates", "index.html")
+	tmpl, err := template.ParseFiles(templatePath)
+	if err != nil {
+		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.Execute(w, nil)
+	if err != nil {
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
 }

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 
@@ -17,34 +16,34 @@ type APIHandler struct {
 }
 
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
-	var backup_repo backuprepo.BackupRepo
-
-	err := json.NewDecoder(r.Body).Decode(&backup_repo)
+	var backupRepo backuprepo.BackupRepo
+	err := json.NewDecoder(r.Body).Decode(&backupRepo)
 	if err != nil {
-		log.Fatalln("There was an error decoding the request body into the struct")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
 	}
 
-	local_path := os.Getenv("GITECHO_DATA_PATH") + "/" + backup_repo.Name
-	backup_repo.LocalPath = local_path
+	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + backupRepo.Name
+	backupRepo.LocalPath = localPath
 
-	err = backup_repo.InitializeRepo()
+	err = backupRepo.InitializeRepo()
 	if err != nil {
-		log.Fatalln("There was an error creating the backup repo configuration")
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
+		return
 	}
 
-	err = a.Db.InsertBackupRepo(backup_repo)
+	err = a.Db.InsertBackupRepo(backupRepo)
 	if err != nil {
-		log.Fatalln("There was an error creating the backup repo configuration")
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
+		return
 	}
 
-	a.Dispatcher.AddRepository(backup_repo)
+	a.Dispatcher.AddRepository(backupRepo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

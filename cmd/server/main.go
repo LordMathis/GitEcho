@@ -4,6 +4,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/handlers"
@@ -41,7 +45,16 @@ func main() {
 		Db:         database,
 	}
 
-	http.HandleFunc("/api/v1/createBackupRepo", apiHandler.HandleCreateBackupRepo)
+	router := chi.NewRouter()
+
+	// Set up middleware
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{"*"}, // Add your allowed origins here
+	}))
+
+	router.Post("/api/v1/createBackupRepo", apiHandler.HandleCreateBackupRepo)
 
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {

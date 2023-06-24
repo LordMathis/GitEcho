@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -36,12 +37,6 @@ func ConnectDB() (*Database, error) {
 		return nil, err
 	}
 
-	createDBQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbname)
-	_, err = db.Exec(createDBQuery)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Database{DB: db}, nil
 }
 
@@ -54,12 +49,20 @@ func (db *Database) MigrateDB() error {
 	sqlDB := db.DB.DB
 
 	// Set up the migration source
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Construct the absolute path to the migrations directory
+	migrationsDir := filepath.Join(currentDir, "..", "..", "pkg", "database", "migrations")
+
 	migrations := &migrate.FileMigrationSource{
-		Dir: "path/to/migrations",
+		Dir: migrationsDir,
 	}
 
 	// Apply migrations
-	_, err := migrate.Exec(sqlDB, "postgres", migrations, migrate.Up)
+	_, err = migrate.Exec(sqlDB, "postgres", migrations, migrate.Up)
 	if err != nil {
 		return err
 	}
@@ -115,7 +118,7 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
 func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
-	query := "SELECT * FROM backup_repo_config"
+	query := "SELECT * FROM backup_repo"
 	backup_repos := []*backuprepo.BackupRepo{}
 	err := db.Select(&backup_repos, query)
 	if err != nil {

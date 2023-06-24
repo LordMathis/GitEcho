@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -40,9 +42,18 @@ func main() {
 
 	dispatcher.Start()
 
+	currentDir, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Construct the absolute path to the templates directory
+	templatesDir := filepath.Join(currentDir, "..", "..", "templates")
+
 	apiHandler := handlers.APIHandler{
-		Dispatcher: dispatcher,
-		Db:         database,
+		Dispatcher:   dispatcher,
+		Db:           database,
+		TemplatesDir: templatesDir,
 	}
 
 	router := chi.NewRouter()
@@ -55,8 +66,9 @@ func main() {
 	}))
 
 	router.Post("/api/v1/createBackupRepo", apiHandler.HandleCreateBackupRepo)
+	router.Get("/", apiHandler.HandleIndex)
 
-	err = http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatalln("There's an error with the server,", err)
 	}

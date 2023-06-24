@@ -13,8 +13,9 @@ import (
 )
 
 type APIHandler struct {
-	Dispatcher *backup.BackupDispatcher
-	Db         *database.Database
+	Dispatcher   *backup.BackupDispatcher
+	Db           *database.Database
+	TemplatesDir string
 }
 
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
@@ -52,9 +53,10 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
 }
 
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	templatePath := filepath.Join("templates", "index.html")
-	tmpl, err := template.ParseFiles(templatePath)
+func (a *APIHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
+
+	templatePah := filepath.Join(a.TemplatesDir, "index.html")
+	tmpl, err := template.ParseFiles(templatePah)
 	if err != nil {
 		http.Error(w, "Failed to load template", http.StatusInternalServerError)
 		return

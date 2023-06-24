@@ -19,17 +19,19 @@ var (
 
 func getSession() (*session.Session, error) {
 	once.Do(func() {
-		var sessConfig *aws.Config
+		config := &aws.Config{}
 
-		// Check if a custom region is specified
-		region := os.Getenv("AWS_REGION")
-		if region != "" {
-			sessConfig = &aws.Config{
-				Region: aws.String(region),
-			}
+		s3Endpoint := os.Getenv("S3_ENDPOINT")
+		if s3Endpoint != "" {
+			config.Endpoint = aws.String(s3Endpoint)
 		}
 
-		sess, sessErr = session.NewSession(sessConfig)
+		s3Region := os.Getenv("S3_REGION")
+		if s3Region != "" {
+			config.Region = aws.String(s3Region)
+		}
+
+		sess, sessErr = session.NewSession(config)
 	})
 	return sess, sessErr
 }

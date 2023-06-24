@@ -19,9 +19,17 @@ var (
 
 func getSession() (*session.Session, error) {
 	once.Do(func() {
-		sess, sessErr = session.NewSession(&aws.Config{
-			Region: aws.String("your-region"), // Replace with your AWS region
-		})
+		var sessConfig *aws.Config
+
+		// Check if a custom region is specified
+		region := os.Getenv("AWS_REGION")
+		if region != "" {
+			sessConfig = &aws.Config{
+				Region: aws.String(region),
+			}
+		}
+
+		sess, sessErr = session.NewSession(sessConfig)
 	})
 	return sess, sessErr
 }

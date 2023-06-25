@@ -4,52 +4,70 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-var (
-	once    sync.Once
-	sess    *session.Session
-	sessErr error
-)
+type S3Storage struct {
+	Session    *session.Session
+	Endpoint   string `db:"endpoint"`
+	Region     string `db:"region"`
+	AccessKey  string `db:"access_key"`
+	SecretKey  string `db:"secret_key"`
+	BucketName string `db:"bucket_name"`
+}
 
-func getSession() (*session.Session, error) {
-	once.Do(func() {
-		config := &aws.Config{}
+func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {
+	config := &aws.Config{}
 
-		s3Endpoint := os.Getenv("S3_ENDPOINT")
-		if s3Endpoint != "" {
-			config.Endpoint = aws.String(s3Endpoint)
-		}
+	if endpoint != "" {
+		config.Endpoint = aws.String(endpoint)
+	}
 
-		s3Region := os.Getenv("S3_REGION")
-		if s3Region != "" {
-			config.Region = aws.String(s3Region)
-		}
+	if region != "" {
+		config.Region = aws.String(region)
+	}
 
-		sess, sessErr = session.NewSession(config)
-	})
-	return sess, sessErr
+	if accessKey != "" && secretKey != "" {
+		config.Credentials = credentials.NewStaticCredentials(accessKey, secretKey, "")
+	}
+
+	sess, err := session.NewSession(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return sess, nil
+}
+
+func NewS3Storage(endpoint string, region string, accessKey string, secretKey string, bucketName string) (*S3Storage, error) {
+	session, err := getSession(endpoint, region, accessKey, secretKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &S3Storage{
+		Session:    session,
+		Endpoint:   endpoint,
+		Region:     region,
+		AccessKey:  accessKey,
+		SecretKey:  secretKey,
+		BucketName: bucketName,
+	}, nil
 }
 
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.
 // If a file already exists in the remote storage, it will be overwritten.
-func UploadDirectory(bucketName, directoryPath string) error {
-	// Get the session
-	sess, err := getSession()
-	if err != nil {
-		return err
-	}
+func (s *S3Storage) UploadDirectory(directoryPath string) error {
 
 	// Create a new S3 service client
-	svc := s3.New(sess)
+	svc := s3.New(s.Session)
 
 	// WalkDir through the directory recursively
-	err = filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -75,7 +93,7 @@ func UploadDirectory(bucketName, directoryPath string) error {
 
 		// Create the input parameters for the S3 PutObject operation
 		input := &s3.PutObjectInput{
-			Bucket: aws.String(bucketName),
+			Bucket: aws.String(s.BucketName),
 			Key:    aws.String(key),
 			Body:   f,
 		}

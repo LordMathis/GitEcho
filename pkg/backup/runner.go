@@ -2,7 +2,6 @@ package backup
 
 import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
-	s3client "github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/go-git/go-git/v5"
 )
 
@@ -21,7 +20,7 @@ func BackupAndUpload(repoConfig backuprepo.BackupRepo) error {
 	}
 
 	// Upload the local directory to S3
-	err = s3client.UploadDirectory(repoConfig.S3Bucket, repoConfig.LocalPath)
+	err = repoConfig.Storage.UploadDirectory(repoConfig.LocalPath)
 	if err != nil {
 		return err
 	}

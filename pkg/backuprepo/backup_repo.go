@@ -8,15 +8,17 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+
+	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 type BackupRepo struct {
 	Name         string `json:"name" db:"name"`
 	SrcRepo      *git.Repository
-	RemoteUrl    string `json:"remote_url" db:"remote_url"`
+	RemoteURL    string `json:"remote_url" db:"remote_url"`
 	PullInterval int    `json:"pull_interval" db:"pull_interval"`
-	S3URL        string `json:"s3_url" db:"s3_url"`
-	S3Bucket     string `json:"s3_bucket" db:"s3_bucket"`
+	Storage      storage.Storage
+	StorageID    int    `db:"storage_id"`
 	LocalPath    string `db:"local_path"`
 }
 
@@ -25,7 +27,7 @@ type BackupRepo struct {
 // pullInterval: the interval (in seconds) between each pull operation
 // s3bucket: the name of the S3 bucket to store the backups
 // localPath: the local path where the backups will be stored
-func NewBackupRepo(name string, remoteURL string, pullInterval int, s3URL string, s3Bucket string, localPath string) (*BackupRepo, error) {
+func NewBackupRepo(name string, remoteURL string, pullInterval int, localPath string, storage storage.Storage) (*BackupRepo, error) {
 
 	// Extract repository name from remote URL if not provided
 	if name == "" {
@@ -35,9 +37,9 @@ func NewBackupRepo(name string, remoteURL string, pullInterval int, s3URL string
 
 	backup_repo := &BackupRepo{
 		Name:         name,
+		RemoteURL:    remoteURL,
 		PullInterval: pullInterval,
-		S3URL:        s3URL,
-		S3Bucket:     s3Bucket,
+		Storage:      storage,
 		LocalPath:    localPath,
 	}
 
@@ -85,10 +87,10 @@ func (b *BackupRepo) InitializeRepo() error {
 	}
 
 	// Repository doesn't exist, clone it
-	fmt.Printf("Cloning repository from %s to %s\n", b.RemoteUrl, b.LocalPath)
+	fmt.Printf("Cloning repository from %s to %s\n", b.RemoteURL, b.LocalPath)
 
 	_, err = git.PlainClone(b.LocalPath, false, &git.CloneOptions{
-		URL:      b.RemoteUrl,
+		URL:      b.RemoteURL,
 		Progress: os.Stdout,
 	})
 
@@ -109,7 +111,7 @@ func (b *BackupRepo) InitializeRepo() error {
 func ValidateBackupRepo(backupRepo BackupRepo) error {
 	// Define regular expression patterns for validation
 	namePattern := `^[a-zA-Z0-9_-]+$`
-	s3URLPattern := `^https?://.+`
+	// s3URLPattern := `^https?://.+`
 
 	// Validate the Name field
 	if backupRepo.Name == "" {
@@ -124,12 +126,12 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 		return errors.New("pullInterval field must be a positive integer")
 	}
 
-	// Validate the S3URL field (example pattern)
-	if backupRepo.S3URL != "" {
-		if matched, _ := regexp.MatchString(s3URLPattern, backupRepo.S3URL); !matched {
-			return errors.New("S3URL field must be a valid HTTP or HTTPS URL")
-		}
-	}
+	// // Validate the S3URL field (example pattern)
+	// if backupRepo.S3URL != "" {
+	// 	if matched, _ := regexp.MatchString(s3URLPattern, backupRepo.S3URL); !matched {
+	// 		return errors.New("S3URL field must be a valid HTTP or HTTPS URL")
+	// 	}
+	// }
 
 	return nil
 }

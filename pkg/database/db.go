@@ -1,15 +1,16 @@
 package database
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
-
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
 
 type Database struct {
@@ -71,33 +72,72 @@ func (db *Database) MigrateDB() error {
 }
 
 func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {
-	// Prepare the INSERT statement
-	stmt, err := db.DB.PrepareNamed(`
-		INSERT INTO backup_repo (name, remote_url, pull_interval, s3_url, s3_bucket, local_path)
-		VALUES (:name, :remote_url, :pull_interval, :s3_url, :s3_bucket, :local_path)
+	// Determine the storage type
+	var storageID int
+	var err error
+
+	switch backupRepo.Storage.(type) {
+	case *storage.S3Storage:
+		storageID, err = db.InsertS3Storage(backupRepo.Storage.(*storage.S3Storage))
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported storage type")
+	}
+
+	// Prepare the INSERT statement for backup_repo
+	stmtBackupRepo, err := db.DB.PrepareNamed(`
+		INSERT INTO backup_repo (name, pull_interval, storage_id, local_path)
+		VALUES (:name, :pull_interval, :storage_id, :local_path)
 	`)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer stmtBackupRepo.Close()
 
-	// Execute the INSERT statement
-	_, err = stmt.Exec(backupRepo)
+	// Set the storage ID in the backupRepo struct
+	backupRepo.StorageID = storageID
+
+	// Execute the INSERT statement for backup_repo
+	_, err = stmtBackupRepo.Exec(backupRepo)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Inserted BackupRepoConfig into the database!")
+	fmt.Println("Inserted BackupRepo and Storage into the database!")
 
 	return nil
+}
+
+// InsertS3Storage inserts S3 storage into the database and returns the storage ID or an error
+func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
+	stmt, err := db.DB.PrepareNamed(`
+		INSERT INTO storage (type, data)
+		VALUES ('s3', '{"endpoint": :endpoint, "region": :region, "access_key": :access_key, "secret_key": :secret_key, "bucket_name": :bucket_name}')
+		RETURNING id
+	`)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+
+	var storageID int
+	err = stmt.Get(&storageID, s3Storage)
+	if err != nil {
+		return 0, err
+	}
+
+	return storageID, nil
 }
 
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
 	stmt, err := db.DB.Preparex(`
-		SELECT *
+		SELECT backup_repo.name, backup_repo.remote_url, backup_repo.pull_interval, storage.type, storage.data, backup_repo.local_path
 		FROM backup_repo
-		WHERE name = $1
+		INNER JOIN storage ON backup_repo.storage_id = storage.id
+		WHERE backup_repo.name = $1
 	`)
 	if err != nil {
 		return nil, err
@@ -105,10 +145,25 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var backupRepo backuprepo.BackupRepo
-	err = stmt.Get(&backupRepo, name)
+	var (
+		backupRepo  backuprepo.BackupRepo
+		storageType string
+		storageData json.RawMessage
+	)
+	err = stmt.Get(&backupRepo, &storageType, &storageData, name)
 	if err != nil {
 		return nil, err
+	}
+
+	// Based on the storage type, unmarshal into the appropriate storage struct
+	switch storageType {
+	case "s3":
+		var s3Storage storage.S3Storage
+		err = json.Unmarshal(storageData, &s3Storage)
+		if err != nil {
+			return nil, err
+		}
+		backupRepo.Storage = &s3Storage
 	}
 
 	backupRepo.InitializeRepo()
@@ -118,16 +173,45 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
 func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
-	query := "SELECT * FROM backup_repo"
-	backup_repos := []*backuprepo.BackupRepo{}
-	err := db.Select(&backup_repos, query)
+
+	type BackupRepoData struct {
+		*backuprepo.BackupRepo
+		StorageType string `db:"type"`
+		StorageData string `db:"data"`
+	}
+
+	query := `
+		SELECT backup_repo.*, storage.type, storage.data
+		FROM backup_repo
+		INNER JOIN storage ON backup_repo.storage_id = storage.id
+	`
+	var backupRepoData []*BackupRepoData
+	err := db.Select(&backupRepoData, query)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, backup_repo := range backup_repos {
-		backup_repo.InitializeRepo()
+	backupRepos := make([]*backuprepo.BackupRepo, len(backupRepoData))
+	for i, data := range backupRepoData {
+		var storageInstance storage.Storage
+
+		// Based on the storage type, unmarshal the data into the appropriate storage struct
+		switch data.StorageType {
+		case "s3":
+			var s3Storage storage.S3Storage
+			err := json.Unmarshal([]byte(data.StorageData), &s3Storage)
+			if err != nil {
+				return nil, err
+			}
+			storageInstance = &s3Storage
+		}
+
+		backupRepo := data.BackupRepo
+		backupRepo.Storage = storageInstance
+
+		backupRepo.InitializeRepo()
+		backupRepos[i] = backupRepo
 	}
 
-	return backup_repos, nil
+	return backupRepos, nil
 }

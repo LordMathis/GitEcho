@@ -1,8 +1,10 @@
 package backuprepo
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -39,7 +41,12 @@ func NewBackupRepo(name string, remoteURL string, pullInterval int, s3URL string
 		LocalPath:    localPath,
 	}
 
-	err := backup_repo.InitializeRepo()
+	err := ValidateBackupRepo(*backup_repo)
+	if err != nil {
+		return nil, err
+	}
+
+	err = backup_repo.InitializeRepo()
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +102,34 @@ func (b *BackupRepo) InitializeRepo() error {
 	}
 
 	b.SrcRepo = srcRepo
+
+	return nil
+}
+
+func ValidateBackupRepo(backupRepo BackupRepo) error {
+	// Define regular expression patterns for validation
+	namePattern := `^[a-zA-Z0-9_-]+$`
+	s3URLPattern := `^https?://.+`
+
+	// Validate the Name field
+	if backupRepo.Name == "" {
+		return errors.New("name field is required")
+	}
+	if matched, _ := regexp.MatchString(namePattern, backupRepo.Name); !matched {
+		return errors.New("name field must consist of alphanumeric characters, hyphens, and underscores only")
+	}
+
+	// Validate the PullInterval field
+	if backupRepo.PullInterval <= 0 {
+		return errors.New("pullInterval field must be a positive integer")
+	}
+
+	// Validate the S3URL field (example pattern)
+	if backupRepo.S3URL != "" {
+		if matched, _ := regexp.MatchString(s3URLPattern, backupRepo.S3URL); !matched {
+			return errors.New("S3URL field must be a valid HTTP or HTTPS URL")
+		}
+	}
 
 	return nil
 }

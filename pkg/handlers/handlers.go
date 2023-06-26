@@ -19,6 +19,14 @@ type APIHandler struct {
 	TemplatesDir string
 }
 
+func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
+	return &APIHandler{
+		Dispatcher:   dispatcher,
+		Db:           db,
+		TemplatesDir: templatesDir,
+	}
+}
+
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)

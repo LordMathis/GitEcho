@@ -16,22 +16,42 @@ import (
 )
 
 func main() {
-	var err error
-	database, err := database.ConnectDB()
+	db := initializeDatabase()
+	defer db.CloseDB()
+
+	dispatcher := initializeBackupDispatcher(db)
+	dispatcher.Start()
+
+	templatesDir := getTemplatesDirectory()
+
+	apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
+
+	router := setupRouter(apiHandler)
+
+	err := http.ListenAndServe(":8080", router)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln("There's an error with the server:", err)
 	}
-	err = database.MigrateDB()
+}
+
+func initializeDatabase() *database.Database {
+	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer database.CloseDB()
+	err = db.MigrateDB()
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	return db
+}
+
+func initializeBackupDispatcher(db *database.Database) *backup.BackupDispatcher {
 	dispatcher := backup.NewBackupDispatcher()
 
-	backupRepos, err := database.GetAllBackupRepos()
-
+	backupRepos, err := db.GetAllBackupRepos()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,22 +60,19 @@ func main() {
 		dispatcher.AddRepository(*backupRepo)
 	}
 
-	dispatcher.Start()
+	return dispatcher
+}
 
+func getTemplatesDirectory() string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Construct the absolute path to the templates directory
-	templatesDir := filepath.Join(currentDir, "..", "..", "templates")
+	return filepath.Join(currentDir, "..", "..", "templates")
+}
 
-	apiHandler := handlers.APIHandler{
-		Dispatcher:   dispatcher,
-		Db:           database,
-		TemplatesDir: templatesDir,
-	}
-
+func setupRouter(apiHandler *handlers.APIHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Set up middleware
@@ -69,8 +86,5 @@ func main() {
 	router.Get("/api/v1/getBackupRepos", apiHandler.HandleGetBackupRepos)
 	router.Get("/", apiHandler.HandleIndex)
 
-	err = http.ListenAndServe(":8080", router)
-	if err != nil {
-		log.Fatalln("There's an error with the server,", err)
-	}
+	return router
 }

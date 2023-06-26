@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,6 +58,15 @@ func NewS3Storage(endpoint string, region string, accessKey string, secretKey st
 		SecretKey:  secretKey,
 		BucketName: bucketName,
 	}, nil
+}
+
+func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
+	var s3Storage S3Storage
+	err := json.Unmarshal([]byte(storageData), &s3Storage)
+	if err != nil {
+		return nil, err
+	}
+	return &s3Storage, nil
 }
 
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.

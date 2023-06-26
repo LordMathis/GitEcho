@@ -22,6 +22,13 @@ type BackupRepo struct {
 	LocalPath    string `db:"local_path"`
 }
 
+// Utility struct BackupRepoData for db and api calls
+type BackupRepoData struct {
+	*BackupRepo
+	StorageType string `db:"type"`
+	StorageData string `db:"data"`
+}
+
 // NewBackupRepo creates a new BackupRepo instance
 // srcRepoURL: the URL of the source repo to backup
 // pullInterval: the interval (in seconds) between each pull operation

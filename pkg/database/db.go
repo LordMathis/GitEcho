@@ -1,7 +1,6 @@
 package database
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -145,47 +144,41 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	defer stmt.Close()
 
 	// Execute the SELECT statement
-	var (
-		backupRepo  backuprepo.BackupRepo
-		storageType string
-		storageData json.RawMessage
-	)
-	err = stmt.Get(&backupRepo, &storageType, &storageData, name)
+	var backupRepoData backuprepo.BackupRepoData
+
+	err = stmt.Get(&backupRepoData.BackupRepo, &backupRepoData.StorageType, &backupRepoData.StorageData, name)
 	if err != nil {
 		return nil, err
 	}
 
+	var storageInstance storage.Storage
+
 	// Based on the storage type, unmarshal into the appropriate storage struct
-	switch storageType {
+	switch backupRepoData.StorageType {
 	case "s3":
-		var s3Storage storage.S3Storage
-		err = json.Unmarshal(storageData, &s3Storage)
+		storageInstance, err = storage.NewS3StorageFromJson(string(backupRepoData.StorageData))
 		if err != nil {
 			return nil, err
 		}
-		backupRepo.Storage = &s3Storage
 	}
 
+	backupRepo := backupRepoData.BackupRepo
+
+	backupRepo.Storage = storageInstance
 	backupRepo.InitializeRepo()
 
-	return &backupRepo, nil
+	return backupRepo, nil
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
 func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
-
-	type BackupRepoData struct {
-		*backuprepo.BackupRepo
-		StorageType string `db:"type"`
-		StorageData string `db:"data"`
-	}
 
 	query := `
 		SELECT backup_repo.*, storage.type, storage.data
 		FROM backup_repo
 		INNER JOIN storage ON backup_repo.storage_id = storage.id
 	`
-	var backupRepoData []*BackupRepoData
+	var backupRepoData []*backuprepo.BackupRepoData
 	err := db.Select(&backupRepoData, query)
 	if err != nil {
 		return nil, err
@@ -194,16 +187,13 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	backupRepos := make([]*backuprepo.BackupRepo, len(backupRepoData))
 	for i, data := range backupRepoData {
 		var storageInstance storage.Storage
-
 		// Based on the storage type, unmarshal the data into the appropriate storage struct
 		switch data.StorageType {
 		case "s3":
-			var s3Storage storage.S3Storage
-			err := json.Unmarshal([]byte(data.StorageData), &s3Storage)
+			storageInstance, err = storage.NewS3StorageFromJson(data.StorageData)
 			if err != nil {
 				return nil, err
 			}
-			storageInstance = &s3Storage
 		}
 
 		backupRepo := data.BackupRepo

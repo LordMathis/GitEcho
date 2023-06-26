@@ -82,8 +82,8 @@ func setupRouter(apiHandler *handlers.APIHandler) *chi.Mux {
 		AllowedOrigins: []string{"*"}, // Add your allowed origins here
 	}))
 
-	router.Post("/api/v1/createBackupRepo", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/getBackupRepos", apiHandler.HandleGetBackupRepos)
+	router.Post("/api/v1/backupRepos", apiHandler.HandleCreateBackupRepo)
+	router.Get("/api/v1/backupRepos", apiHandler.HandleGetBackupRepos)
 	router.Get("/", apiHandler.HandleIndex)
 
 	return router

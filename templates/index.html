@@ -31,7 +31,7 @@
 
     <div class="right-panel">
         <h1>Create Backup Repo</h1>
-        <form id="create-backup-form" action="/api/v1/createBackupRepo" method="POST">
+        <form id="create-backup-form" action="/api/v1/backupRepos" method="POST">
             <label for="name">Name:</label>
             <input type="text" name="name" id="name" required>
             <br>
@@ -64,7 +64,7 @@
 
     <script>
         // Retrieve backup repositories and populate the list
-        fetch('/api/v1/getBackupRepos')
+        fetch('/api/v1/backupRepos')
             .then(response => response.json())
             .then(data => {
                 const backupRepoList = document.getElementById('backup-repo-list');

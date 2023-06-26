@@ -66,6 +66,7 @@ func main() {
 	}))
 
 	router.Post("/api/v1/createBackupRepo", apiHandler.HandleCreateBackupRepo)
+	router.Get("/api/v1/getBackupRepos", apiHandler.HandleGetBackupRepos)
 	router.Get("/", apiHandler.HandleIndex)
 
 	err = http.ListenAndServe(":8080", router)

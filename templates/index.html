@@ -1,15 +1,117 @@
 <!-- index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Create Backup Repo</title>
+    <style>
+        .left-panel {
+            float: left;
+            width: 30%;
+            padding: 20px;
+        }
+        
+        .right-panel {
+            float: right;
+            width: 70%;
+            padding: 20px;
+        }
+        
+        .backup-repo-item {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Create Backup Repo</h1>
-    <form action="/api/v1/createBackupRepo" method="POST">
-        <textarea name="backupConfig" rows="5" cols="50"></textarea>
-        <br>
-        <button type="submit">Create Backup Repo</button>
-    </form>
+    <div class="left-panel">
+        <h2>Backup Repositories</h2>
+        <ul id="backup-repo-list">
+            <!-- Populate backup repositories dynamically using JavaScript -->
+        </ul>
+    </div>
+
+    <div class="right-panel">
+        <h1>Create Backup Repo</h1>
+        <form id="create-backup-form" action="/api/v1/createBackupRepo" method="POST">
+            <label for="name">Name:</label>
+            <input type="text" name="name" id="name" required>
+            <br>
+
+            <label for="remote-url">Remote URL:</label>
+            <input type="text" name="remote-url" id="remote-url" required>
+            <br>
+
+            <label for="pull-interval">Pull Interval:</label>
+            <input type="number" name="pull-interval" id="pull-interval" required>
+            <br>
+
+            <label for="storage-type">Storage Type:</label>
+            <select name="storage-type" id="storage-type" onchange="showStorageOptions()">
+                <option value="">---</option>
+                <option value="s3">S3</option>
+                <!-- Add options for other storage types as needed -->
+            </select>
+            <br>
+
+            <div id="storage-options">
+                <!-- Storage options will be dynamically populated based on the selected storage type -->
+            </div>
+
+            <br>
+
+            <button type="submit">Create Backup Repo</button>
+        </form>
+    </div>
+
+    <script>
+        // Retrieve backup repositories and populate the list
+        fetch('/api/v1/getBackupRepos')
+            .then(response => response.json())
+            .then(data => {
+                const backupRepoList = document.getElementById('backup-repo-list');
+                data.forEach(backupRepo => {
+                    const li = document.createElement('li');
+                    li.className = 'backup-repo-item';
+                    li.textContent = backupRepo.name;
+                    backupRepoList.appendChild(li);
+                });
+            });
+        
+        // Show storage options based on the selected storage type
+        function showStorageOptions() {
+            const storageType = document.getElementById('storage-type').value;
+            const storageOptionsDiv = document.getElementById('storage-options');
+            storageOptionsDiv.innerHTML = ''; // Clear previous options
+            
+            if (storageType === 's3') {
+                const s3Options = document.createElement('div');
+                s3Options.innerHTML = `
+                    <label for="s3-endpoint">Endpoint:</label>
+                    <input type="text" name="s3-endpoint" id="s3-endpoint" required>
+                    <br>
+                    
+                    <label for="s3-region">Region:</label>
+                    <input type="text" name="s3-region" id="s3-region" required>
+                    <br>
+                    
+                    <label for="s3-access-key">Access Key:</label>
+                    <input type="text" name="s3-access-key" id="s3-access-key" required>
+                    <br>
+                    
+                    <label for="s3-secret-key">Secret Key:</label>
+                    <input type="text" name="s3-secret-key" id="s3-secret-key" required>
+                    <br>
+                    
+                    <label for="s3-bucket-name">Bucket Name:</label>
+                    <input type="text" name="s3-bucket-name" id="s3-bucket-name" required>
+                    <br>
+                `;
+                storageOptionsDiv.appendChild(s3Options);
+            }
+            
+            // Add cases for other storage types as needed
+        }
+        
+        window.addEventListener("load", showStorageOptions); // Call on page load
+    </script>
 </body>
 </html>

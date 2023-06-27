@@ -1,11 +1,13 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -111,6 +113,27 @@ func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {
 
 // InsertS3Storage inserts S3 storage into the database and returns the storage ID or an error
 func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
+	// Encrypt the access key and secret key
+	encryptedAccessKey, err := encryption.Encrypt([]byte(s3Storage.AccessKey))
+	if err != nil {
+		return 0, err
+	}
+
+	encryptedSecretKey, err := encryption.Encrypt([]byte(s3Storage.SecretKey))
+	if err != nil {
+		return 0, err
+	}
+
+	// Create a new instance of S3Storage with encrypted keys
+	encryptedS3Storage := &storage.S3Storage{
+		Endpoint:   s3Storage.Endpoint,
+		Region:     s3Storage.Region,
+		AccessKey:  string(encryptedAccessKey),
+		SecretKey:  string(encryptedSecretKey),
+		BucketName: s3Storage.BucketName,
+	}
+
+	// Prepare the SQL statement with the encrypted keys
 	stmt, err := db.DB.PrepareNamed(`
 		INSERT INTO storage (type, data)
 		VALUES ('s3', '{"endpoint": :endpoint, "region": :region, "access_key": :access_key, "secret_key": :secret_key, "bucket_name": :bucket_name}')
@@ -122,7 +145,7 @@ func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
 	defer stmt.Close()
 
 	var storageID int
-	err = stmt.Get(&storageID, s3Storage)
+	err = stmt.Get(&storageID, encryptedS3Storage)
 	if err != nil {
 		return 0, err
 	}
@@ -160,6 +183,26 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 		if err != nil {
 			return nil, err
 		}
+
+		s3Storage, ok := storageInstance.(*storage.S3Storage)
+		if !ok {
+			return nil, errors.New("storage instance is not of type S3Storage")
+		}
+
+		// Decrypt the access key and secret key
+		decryptedAccessKey, err := encryption.Decrypt([]byte(s3Storage.AccessKey))
+		if err != nil {
+			return nil, err
+		}
+
+		decryptedSecretKey, err := encryption.Decrypt([]byte(s3Storage.SecretKey))
+		if err != nil {
+			return nil, err
+		}
+
+		// Update the access key and secret key with the decrypted values
+		s3Storage.AccessKey = string(decryptedAccessKey)
+		s3Storage.SecretKey = string(decryptedSecretKey)
 	}
 
 	backupRepo := backupRepoData.BackupRepo
@@ -194,6 +237,26 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			s3Storage, ok := storageInstance.(*storage.S3Storage)
+			if !ok {
+				return nil, errors.New("storage instance is not of type S3Storage")
+			}
+
+			// Decrypt the access key and secret key
+			decryptedAccessKey, err := encryption.Decrypt([]byte(s3Storage.AccessKey))
+			if err != nil {
+				return nil, err
+			}
+
+			decryptedSecretKey, err := encryption.Decrypt([]byte(s3Storage.SecretKey))
+			if err != nil {
+				return nil, err
+			}
+
+			// Update the access key and secret key with the decrypted values
+			s3Storage.AccessKey = string(decryptedAccessKey)
+			s3Storage.SecretKey = string(decryptedSecretKey)
 		}
 
 		backupRepo := data.BackupRepo

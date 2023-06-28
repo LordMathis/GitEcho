@@ -3,12 +3,12 @@ package backuprepo
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 
+	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
@@ -18,8 +18,15 @@ type BackupRepo struct {
 	RemoteURL    string `json:"remote_url" db:"remote_url"`
 	PullInterval int    `json:"pull_interval" db:"pull_interval"`
 	Storage      storage.Storage
-	StorageID    int    `db:"storage_id"`
-	LocalPath    string `db:"local_path"`
+	StorageID    int         `db:"storage_id"`
+	LocalPath    string      `db:"local_path"`
+	Credentials  Credentials `json:"credentials"`
+}
+
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	KeyPath  string `json:"key_path"`
 }
 
 // Utility struct BackupRepoData for db and api calls
@@ -64,54 +71,25 @@ func NewBackupRepo(name string, remoteURL string, pullInterval int, localPath st
 }
 
 func (b *BackupRepo) InitializeRepo() error {
-	_, err := git.PlainOpen(b.LocalPath)
+	gitclient := gitutil.NewGitClient(b.Credentials.Username, b.Credentials.Password, b.Credentials.KeyPath)
+	repo, err := gitclient.OpenRepository(b.LocalPath)
+
 	if err == nil {
-		// If repository exists, pull latest changes
+		// If repository exists, pull the latest changes
 		fmt.Printf("Pulling repository at %s\n", b.LocalPath)
-
-		srcRepo, err := git.PlainOpen(b.LocalPath)
-		if err != nil {
-			return fmt.Errorf("failed to open repository: %v", err)
-		}
-
-		wt, err := srcRepo.Worktree()
-		if err != nil {
-			return fmt.Errorf("failed to get worktree: %v", err)
-		}
-
-		err = wt.Pull(&git.PullOptions{
-			RemoteName: "origin",
-			Progress:   os.Stdout,
-		})
-		if err != nil && err != git.NoErrAlreadyUpToDate {
-			return fmt.Errorf("failed to pull repository: %v", err)
-		}
-
-		b.SrcRepo = srcRepo
-
-		return nil
-
+		b.SrcRepo = repo
+		return gitclient.PullChanges(repo)
 	}
 
 	// Repository doesn't exist, clone it
 	fmt.Printf("Cloning repository from %s to %s\n", b.RemoteURL, b.LocalPath)
-
-	_, err = git.PlainClone(b.LocalPath, false, &git.CloneOptions{
-		URL:      b.RemoteURL,
-		Progress: os.Stdout,
-	})
+	repo, err = gitclient.CloneRepository(b.RemoteURL, b.LocalPath)
 
 	if err != nil {
-		return fmt.Errorf("failed to clone repository: %v", err)
+		return err
 	}
 
-	srcRepo, err := git.PlainOpen(b.LocalPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %v", err)
-	}
-
-	b.SrcRepo = srcRepo
-
+	b.SrcRepo = repo
 	return nil
 }
 

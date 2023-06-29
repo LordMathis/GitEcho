@@ -11,6 +11,15 @@ import (
 
 var encryptionKey = []byte(os.Getenv("ENCRYPTION_KEY"))
 
+func GenerateEncryptionKey() ([]byte, error) {
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
 func Encrypt(data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {

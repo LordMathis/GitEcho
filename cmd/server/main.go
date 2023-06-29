@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,10 +14,33 @@ import (
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/database"
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/handlers"
 )
 
 func main() {
+
+	generateKey := flag.Bool("generate-key", false, "Generate encryption key and exit")
+	flag.Parse()
+
+	if *generateKey {
+		key, err := encryption.GenerateEncryptionKey()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		fmt.Println("Generated encryption key:", key)
+		return
+	}
+
+	encryptionKey := os.Getenv("ENCRYPTION_KEY")
+
+	// Check if the encryption key is provided
+	err := validateEncryptionKey(encryptionKey)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	db := initializeDatabase()
 	defer db.CloseDB()
 
@@ -28,10 +53,24 @@ func main() {
 
 	router := setupRouter(apiHandler)
 
-	err := http.ListenAndServe(":8080", router)
+	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatalln("There's an error with the server:", err)
 	}
+}
+
+func validateEncryptionKey(encryptionKey string) error {
+	if encryptionKey == "" {
+		return fmt.Errorf("encryption key not set, please set the ENCRYPTION_KEY environment variable")
+	}
+
+	// Check if the encryption key has the correct size
+	keySize := len(encryptionKey)
+	if keySize != 16 && keySize != 24 && keySize != 32 {
+		return fmt.Errorf("invalid encryption key size, encryption key must be 16, 24, or 32 bytes in length")
+	}
+
+	return nil
 }
 
 func initializeDatabase() *database.Database {

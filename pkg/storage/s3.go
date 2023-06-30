@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -67,6 +68,25 @@ func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
 		return nil, err
 	}
 	return &s3Storage, nil
+}
+
+func (s *S3Storage) DecryptKeys() error {
+	// Decrypt the access key and secret key
+	decryptedAccessKey, err := encryption.Decrypt([]byte(s.AccessKey))
+	if err != nil {
+		return err
+	}
+
+	decryptedSecretKey, err := encryption.Decrypt([]byte(s.SecretKey))
+	if err != nil {
+		return err
+	}
+
+	// Update the access key and secret key with the decrypted values
+	s.AccessKey = string(decryptedAccessKey)
+	s.SecretKey = string(decryptedSecretKey)
+
+	return nil
 }
 
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.

@@ -24,9 +24,9 @@ type BackupRepo struct {
 }
 
 type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	KeyPath  string `json:"key_path"`
+	Username string `json:"username" db:"git_username"`
+	Password string `json:"password" db:"git_password"`
+	KeyPath  string `json:"key_path" db:"git_key_path"`
 }
 
 // Utility struct BackupRepoData for db and api calls
@@ -110,13 +110,6 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	if backupRepo.PullInterval <= 0 {
 		return errors.New("pullInterval field must be a positive integer")
 	}
-
-	// // Validate the S3URL field (example pattern)
-	// if backupRepo.S3URL != "" {
-	// 	if matched, _ := regexp.MatchString(s3URLPattern, backupRepo.S3URL); !matched {
-	// 		return errors.New("S3URL field must be a valid HTTP or HTTPS URL")
-	// 	}
-	// }
 
 	return nil
 }

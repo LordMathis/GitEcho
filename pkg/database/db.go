@@ -1,7 +1,6 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,24 +86,33 @@ func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {
 		return fmt.Errorf("unsupported storage type")
 	}
 
+	// Encrypt the password
+	password := backupRepo.Credentials.Password
+	encryptedPassword, err := encryption.Encrypt([]byte(password))
+	if err != nil {
+		return err
+	}
+
 	// Prepare the INSERT statement for backup_repo
 	stmtBackupRepo, err := db.DB.PrepareNamed(`
-		INSERT INTO backup_repo (name, pull_interval, storage_id, local_path)
-		VALUES (:name, :pull_interval, :storage_id, :local_path)
+		INSERT INTO backup_repo (name, pull_interval, storage_id, local_path, git_username, git_password, git_key_path, remote_url)
+		VALUES (:name, :pull_interval, :storage_id, :local_path, :git_username, :git_password, :git_key_path, :remote_url)
 	`)
 	if err != nil {
 		return err
 	}
 	defer stmtBackupRepo.Close()
 
-	// Set the storage ID in the backupRepo struct
+	backupRepo.Credentials.Password = string(encryptedPassword)
 	backupRepo.StorageID = storageID
 
-	// Execute the INSERT statement for backup_repo
 	_, err = stmtBackupRepo.Exec(backupRepo)
 	if err != nil {
 		return err
 	}
+
+	// Put plaintext password back to struct
+	backupRepo.Credentials.Password = password
 
 	fmt.Println("Inserted BackupRepo and Storage into the database!")
 
@@ -156,7 +164,7 @@ func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
 	stmt, err := db.DB.Preparex(`
-		SELECT backup_repo.name, backup_repo.remote_url, backup_repo.pull_interval, storage.type, storage.data, backup_repo.local_path
+		SELECT backup_repo.*, storage.type, storage.data
 		FROM backup_repo
 		INNER JOIN storage ON backup_repo.storage_id = storage.id
 		WHERE backup_repo.name = $1
@@ -169,48 +177,12 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	// Execute the SELECT statement
 	var backupRepoData backuprepo.BackupRepoData
 
-	err = stmt.Get(&backupRepoData.BackupRepo, &backupRepoData.StorageType, &backupRepoData.StorageData, name)
+	err = stmt.Get(&backupRepoData)
 	if err != nil {
 		return nil, err
 	}
 
-	var storageInstance storage.Storage
-
-	// Based on the storage type, unmarshal into the appropriate storage struct
-	switch backupRepoData.StorageType {
-	case "s3":
-		storageInstance, err = storage.NewS3StorageFromJson(string(backupRepoData.StorageData))
-		if err != nil {
-			return nil, err
-		}
-
-		s3Storage, ok := storageInstance.(*storage.S3Storage)
-		if !ok {
-			return nil, errors.New("storage instance is not of type S3Storage")
-		}
-
-		// Decrypt the access key and secret key
-		decryptedAccessKey, err := encryption.Decrypt([]byte(s3Storage.AccessKey))
-		if err != nil {
-			return nil, err
-		}
-
-		decryptedSecretKey, err := encryption.Decrypt([]byte(s3Storage.SecretKey))
-		if err != nil {
-			return nil, err
-		}
-
-		// Update the access key and secret key with the decrypted values
-		s3Storage.AccessKey = string(decryptedAccessKey)
-		s3Storage.SecretKey = string(decryptedSecretKey)
-	}
-
-	backupRepo := backupRepoData.BackupRepo
-
-	backupRepo.Storage = storageInstance
-	backupRepo.InitializeRepo()
-
-	return backupRepo, nil
+	return processBackupRepo(backupRepoData)
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
@@ -229,42 +201,46 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 
 	backupRepos := make([]*backuprepo.BackupRepo, len(backupRepoData))
 	for i, data := range backupRepoData {
-		var storageInstance storage.Storage
-		// Based on the storage type, unmarshal the data into the appropriate storage struct
-		switch data.StorageType {
-		case "s3":
-			storageInstance, err = storage.NewS3StorageFromJson(data.StorageData)
-			if err != nil {
-				return nil, err
-			}
-
-			s3Storage, ok := storageInstance.(*storage.S3Storage)
-			if !ok {
-				return nil, errors.New("storage instance is not of type S3Storage")
-			}
-
-			// Decrypt the access key and secret key
-			decryptedAccessKey, err := encryption.Decrypt([]byte(s3Storage.AccessKey))
-			if err != nil {
-				return nil, err
-			}
-
-			decryptedSecretKey, err := encryption.Decrypt([]byte(s3Storage.SecretKey))
-			if err != nil {
-				return nil, err
-			}
-
-			// Update the access key and secret key with the decrypted values
-			s3Storage.AccessKey = string(decryptedAccessKey)
-			s3Storage.SecretKey = string(decryptedSecretKey)
+		backupRepo, err := processBackupRepo(*data)
+		if err != nil {
+			return nil, err
 		}
 
-		backupRepo := data.BackupRepo
-		backupRepo.Storage = storageInstance
-
-		backupRepo.InitializeRepo()
 		backupRepos[i] = backupRepo
 	}
 
 	return backupRepos, nil
+}
+
+func processBackupRepo(backupRepoData backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
+	var storageInstance storage.Storage
+
+	switch backupRepoData.StorageType {
+	case "s3":
+		storageInstance, err := storage.NewS3StorageFromJson(string(backupRepoData.StorageData))
+		if err != nil {
+			return nil, err
+		}
+
+		err = storageInstance.DecryptKeys()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	password := backupRepoData.BackupRepo.Credentials.Password
+	if password != "" {
+		decryptedPassword, err := encryption.Decrypt([]byte(password))
+		if err != nil {
+			return nil, err
+		}
+		backupRepoData.BackupRepo.Credentials.Password = string(decryptedPassword)
+	}
+
+	backupRepo := backupRepoData.BackupRepo
+	backupRepo.Storage = storageInstance
+
+	backupRepo.InitializeRepo()
+
+	return backupRepo, nil
 }

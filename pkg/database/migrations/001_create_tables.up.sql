@@ -13,5 +13,8 @@ CREATE TABLE IF NOT EXISTS backup_repo (
   pull_interval INT NOT NULL,
   storage_id INT NOT NULL REFERENCES storage(id),
   local_path TEXT NOT NULL,
-  remote_url TEXT NOT NULL
+  remote_url TEXT NOT NULL.
+  git_username TEXT,
+  git_password TEXT,
+  git_key_path TEXT
 );

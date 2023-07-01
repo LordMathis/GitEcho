@@ -1,6 +1,7 @@
 package database
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -121,6 +122,7 @@ func (db *Database) InsertBackupRepo(backupRepo backuprepo.BackupRepo) error {
 
 // InsertS3Storage inserts S3 storage into the database and returns the storage ID or an error
 func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
+
 	// Encrypt the access key and secret key
 	encryptedAccessKey, err := encryption.Encrypt([]byte(s3Storage.AccessKey))
 	if err != nil {
@@ -141,10 +143,16 @@ func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
 		BucketName: s3Storage.BucketName,
 	}
 
-	// Prepare the SQL statement with the encrypted keys
-	stmt, err := db.DB.PrepareNamed(`
+	// Encode the struct fields as JSON
+	dataJSON, err := json.Marshal(encryptedS3Storage)
+	if err != nil {
+		return 0, err
+	}
+
+	// Prepare the SQL statement with positional parameters
+	stmt, err := db.DB.Prepare(`
 		INSERT INTO storage (type, data)
-		VALUES ('s3', '{"endpoint": :endpoint, "region": :region, "access_key": :access_key, "secret_key": :secret_key, "bucket_name": :bucket_name}')
+		VALUES ('s3', $1::jsonb)
 		RETURNING id
 	`)
 	if err != nil {
@@ -153,7 +161,7 @@ func (db *Database) InsertS3Storage(s3Storage *storage.S3Storage) (int, error) {
 	defer stmt.Close()
 
 	var storageID int
-	err = stmt.Get(&storageID, encryptedS3Storage)
+	err = stmt.QueryRow(dataJSON).Scan(&storageID)
 	if err != nil {
 		return 0, err
 	}

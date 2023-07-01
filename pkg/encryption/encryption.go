@@ -11,6 +11,11 @@ import (
 
 var encryptionKey = []byte(os.Getenv("ENCRYPTION_KEY"))
 
+// SetEncryptionKey sets the encryption key manually
+func SetEncryptionKey(key []byte) {
+	encryptionKey = key
+}
+
 func GenerateEncryptionKey() ([]byte, error) {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)

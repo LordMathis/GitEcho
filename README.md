@@ -2,11 +2,17 @@
 
 **Work in Progress**
 
-GitEcho periodically pulls changes from Git repositories, uploads them to S3. It provides a REST API for creating backup configurations and managing the backup process.
+GitEcho is a backup tool for git repositories.
 
 ## Features
 
-- Create backup configurations for Git repositories
-- Periodically pull changes from the repositories
-- Upload the changes to Amazon S3 storage
+- Periodically pulls changes from the repositories
+- Uploads the changes to any S3 compatible storage
 - REST API for managing backup configurations
+
+## Roadmap to First Release
+
+- [ ] Basic tests
+- [ ] Basic Frontend
+- [ ] Comprehensive README
+- [ ] Licence

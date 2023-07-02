@@ -68,13 +68,13 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = a.Db.InsertBackupRepo(*backupRepo)
+	err = a.Db.InsertBackupRepo(backupRepo)
 	if err != nil {
 		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
 		return
 	}
 
-	a.Dispatcher.AddRepository(*backupRepo)
+	a.Dispatcher.AddRepository(backupRepo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

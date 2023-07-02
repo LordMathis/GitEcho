@@ -96,7 +96,7 @@ func initializeBackupDispatcher(db *database.Database) *backup.BackupDispatcher 
 	}
 
 	for _, backupRepo := range backupRepos {
-		dispatcher.AddRepository(*backupRepo)
+		dispatcher.AddRepository(backupRepo)
 	}
 
 	return dispatcher

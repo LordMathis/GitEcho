@@ -24,8 +24,8 @@ func NewBackupDispatcher() *BackupDispatcher {
 }
 
 // AddRepository adds a new repository to the backup dispatcher.
-func (d *BackupDispatcher) AddRepository(repo backuprepo.BackupRepo) {
-	d.repositories = append(d.repositories, repo)
+func (d *BackupDispatcher) AddRepository(repo *backuprepo.BackupRepo) {
+	d.repositories = append(d.repositories, *repo)
 }
 
 // Start starts the backup dispatcher and runs the backup process for each repository at the specified intervals.

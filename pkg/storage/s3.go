@@ -14,12 +14,12 @@ import (
 )
 
 type S3Storage struct {
-	Session    *session.Session
-	Endpoint   string `db:"endpoint"`
-	Region     string `db:"region"`
-	AccessKey  string `db:"access_key"`
-	SecretKey  string `db:"secret_key"`
-	BucketName string `db:"bucket_name"`
+	Session    *session.Session `json:"-"`
+	Endpoint   string           `db:"endpoint"`
+	Region     string           `db:"region"`
+	AccessKey  string           `db:"access_key"`
+	SecretKey  string           `db:"secret_key"`
+	BucketName string           `db:"bucket_name"`
 }
 
 func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {

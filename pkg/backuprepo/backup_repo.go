@@ -18,15 +18,15 @@ type BackupRepo struct {
 	RemoteURL    string `json:"remote_url" db:"remote_url"`
 	PullInterval int    `json:"pull_interval" db:"pull_interval"`
 	Storage      storage.Storage
-	StorageID    int         `db:"storage_id"`
-	LocalPath    string      `db:"local_path"`
-	Credentials  Credentials `json:"credentials"`
+	StorageID    int    `db:"storage_id"`
+	LocalPath    string `db:"local_path"`
+	Credentials  `json:"credentials"`
 }
 
 type Credentials struct {
-	Username string `json:"username" db:"git_username"`
-	Password string `json:"password" db:"git_password"`
-	KeyPath  string `json:"key_path" db:"git_key_path"`
+	GitUsername string `json:"username" db:"git_username"`
+	GitPassword string `json:"password" db:"git_password"`
+	GitKeyPath  string `json:"key_path" db:"git_key_path"`
 }
 
 // Utility struct BackupRepoData for db and api calls
@@ -71,7 +71,7 @@ func NewBackupRepo(name string, remoteURL string, pullInterval int, localPath st
 }
 
 func (b *BackupRepo) InitializeRepo() error {
-	gitclient := gitutil.NewGitClient(b.Credentials.Username, b.Credentials.Password, b.Credentials.KeyPath)
+	gitclient := gitutil.NewGitClient(b.GitUsername, b.GitPassword, b.GitKeyPath)
 	repo, err := gitclient.OpenRepository(b.LocalPath)
 
 	if err == nil {

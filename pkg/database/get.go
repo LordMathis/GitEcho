@@ -27,7 +27,7 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 		return nil, err
 	}
 
-	return processBackupRepo(&backupRepoData)
+	return db.BackupRepoProcessor.ProcessBackupRepo(&backupRepoData)
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
@@ -46,7 +46,7 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 
 	backupRepos := make([]*backuprepo.BackupRepo, len(backupRepoData))
 	for i, data := range backupRepoData {
-		backupRepo, err := processBackupRepo(data)
+		backupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(data)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +57,7 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	return backupRepos, nil
 }
 
-func processBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
+func (db *Database) ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
 	var storageInstance storage.Storage
 
 	switch backupRepoData.StorageType {

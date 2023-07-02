@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -13,9 +14,14 @@ type StorageInserter interface {
 	InsertStorage(s *storage.Storage) (int, error)
 }
 
+type BackupRepoProcessor interface {
+	ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error)
+}
+
 type Database struct {
 	*sqlx.DB
 	StorageInserter
+	BackupRepoProcessor
 }
 
 func ConnectDB() (*Database, error) {

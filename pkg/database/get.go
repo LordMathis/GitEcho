@@ -22,7 +22,7 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	// Execute the SELECT statement
 	var backupRepoData backuprepo.BackupRepoData
 
-	err = stmt.Get(&backupRepoData)
+	err = stmt.Get(&backupRepoData, name)
 	if err != nil {
 		return nil, err
 	}

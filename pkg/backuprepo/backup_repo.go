@@ -32,8 +32,8 @@ type Credentials struct {
 // Utility struct BackupRepoData for db and api calls
 type BackupRepoData struct {
 	*BackupRepo
-	StorageType string `db:"type"`
-	StorageData string `db:"data"`
+	StorageType string `db:"storage.type"`
+	StorageData string `db:"storage.data"`
 }
 
 // NewBackupRepo creates a new BackupRepo instance

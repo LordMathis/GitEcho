@@ -24,18 +24,13 @@ func NewGitClient(username, password, keyPath string) *GitClient {
 func (g *GitClient) CloneRepository(remoteURL, localPath string) (*git.Repository, error) {
 	fmt.Printf("Cloning repository from %s to %s\n", remoteURL, localPath)
 
-	_, err := git.PlainClone(localPath, false, &git.CloneOptions{
+	repo, err := git.PlainClone(localPath, false, &git.CloneOptions{
 		URL:      remoteURL,
 		Progress: os.Stdout,
 		Auth:     g.AuthMethod,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to clone repository: %v", err)
-	}
-
-	repo, err := git.PlainOpen(localPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open repository: %v", err)
 	}
 
 	return repo, nil

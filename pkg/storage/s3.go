@@ -11,10 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
 
 type S3Storage struct {
 	Session    *session.Session `json:"-"`
+	S3Client   s3iface.S3API    `json:"-"`
 	Endpoint   string           `db:"endpoint"`
 	Region     string           `db:"region"`
 	AccessKey  string           `db:"access_key"`
@@ -51,8 +53,11 @@ func NewS3Storage(endpoint string, region string, accessKey string, secretKey st
 		return nil, err
 	}
 
+	svc := s3.New(session)
+
 	return &S3Storage{
 		Session:    session,
+		S3Client:   svc,
 		Endpoint:   endpoint,
 		Region:     region,
 		AccessKey:  accessKey,
@@ -67,6 +72,17 @@ func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	session, err := getSession(s3Storage.Endpoint, s3Storage.Region, s3Storage.AccessKey, s3Storage.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+
+	svc := s3.New(session)
+
+	s3Storage.Session = session
+	s3Storage.S3Client = svc
+
 	return &s3Storage, nil
 }
 
@@ -92,9 +108,6 @@ func (s *S3Storage) DecryptKeys() error {
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.
 // If a file already exists in the remote storage, it will be overwritten.
 func (s *S3Storage) UploadDirectory(directoryPath string) error {
-
-	// Create a new S3 service client
-	svc := s3.New(s.Session)
 
 	// WalkDir through the directory recursively
 	err := filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
@@ -129,7 +142,7 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 		}
 
 		// Perform the S3 PutObject operation
-		_, err = svc.PutObject(input)
+		_, err = s.S3Client.PutObject(input)
 		if err != nil {
 			return err
 		}

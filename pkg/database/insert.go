@@ -9,6 +9,14 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
+type StorageInserter interface {
+	InsertStorage(s *storage.Storage) (int, error)
+}
+
+type BackupRepoInserter interface {
+	InsertBackupRepo(backupRepo *backuprepo.BackupRepo) error
+}
+
 func (db *Database) InsertBackupRepo(backupRepo *backuprepo.BackupRepo) error {
 
 	storageID, err := db.StorageInserter.InsertStorage(&backupRepo.Storage)

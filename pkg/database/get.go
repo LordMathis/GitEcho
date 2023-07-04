@@ -2,8 +2,15 @@ package database
 
 import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
-	"github.com/LordMathis/GitEcho/pkg/encryption"
 )
+
+type BackupRepoNameGetter interface {
+	GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error)
+}
+
+type BackupReposGetter interface {
+	GetAllBackupRepos() ([]*backuprepo.BackupRepo, error)
+}
 
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement
@@ -54,28 +61,4 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	}
 
 	return backupRepos, nil
-}
-
-func (db *Database) ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
-
-	storageInstance, err := db.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
-	if err != nil {
-		return nil, err
-	}
-
-	password := backupRepoData.BackupRepo.GitPassword
-	if password != "" {
-		decryptedPassword, err := encryption.Decrypt([]byte(password))
-		if err != nil {
-			return nil, err
-		}
-		backupRepoData.BackupRepo.GitPassword = string(decryptedPassword)
-	}
-
-	backupRepo := backupRepoData.BackupRepo
-	backupRepo.Storage = storageInstance
-
-	backupRepo.InitializeRepo()
-
-	return backupRepo, nil
 }

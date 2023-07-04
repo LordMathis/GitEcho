@@ -14,18 +14,20 @@ import (
 )
 
 type APIHandler struct {
-	Dispatcher     *backup.BackupDispatcher
-	Db             *database.Database
-	StorageCreator storage.StorageCreator
-	TemplatesDir   string
+	Dispatcher          *backup.BackupDispatcher
+	Db                  *database.Database
+	BackupRepoProcessor backuprepo.BackupRepoProcessor
+	TemplatesDir        string
 }
 
 func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
 	return &APIHandler{
-		Dispatcher:     dispatcher,
-		Db:             db,
-		StorageCreator: &storage.StorageCreatorImpl{},
-		TemplatesDir:   templatesDir,
+		Dispatcher: dispatcher,
+		Db:         db,
+		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
+			StorageCreator: &storage.StorageCreatorImpl{},
+		},
+		TemplatesDir: templatesDir,
 	}
 }
 
@@ -43,27 +45,15 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	}
 
 	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + backupRepoData.Name
+	backupRepoData.LocalPath = localPath
 
-	storageInstance, err := a.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
+	backupRepo, err := a.BackupRepoProcessor.ProcessBackupRepo(&backupRepoData)
 	if err != nil {
-		http.Error(w, "Failed to create storage instance", http.StatusInternalServerError)
+		http.Error(w, "Failed to create backup repository", http.StatusInternalServerError)
 		return
 	}
 
-	backupRepo := &backuprepo.BackupRepo{
-		Name:         backupRepoData.Name,
-		PullInterval: backupRepoData.PullInterval,
-		Storage:      storageInstance,
-		LocalPath:    localPath,
-	}
-
-	err = backupRepo.InitializeRepo()
-	if err != nil {
-		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
-		return
-	}
-
-	err = a.Db.InsertBackupRepo(backupRepo)
+	err = a.Db.BackupRepoInserter.InsertBackupRepo(backupRepo)
 	if err != nil {
 		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
 		return
@@ -78,7 +68,7 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 
 func (api *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
 	// Retrieve all backup repos from the database
-	backupRepos, err := api.Db.GetAllBackupRepos()
+	backupRepos, err := api.Db.BackupReposGetter.GetAllBackupRepos()
 	if err != nil {
 		// Handle the error appropriately, e.g., return an error response
 		http.Error(w, "Failed to retrieve backup repositories", http.StatusInternalServerError)

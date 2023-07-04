@@ -10,19 +10,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type StorageInserter interface {
-	InsertStorage(s *storage.Storage) (int, error)
-}
-
-type BackupRepoProcessor interface {
-	ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error)
-}
-
 type Database struct {
 	*sqlx.DB
 	StorageInserter
-	StorageCreator storage.StorageCreator
-	BackupRepoProcessor
+	BackupRepoInserter
+	BackupRepoNameGetter
+	BackupReposGetter
+	BackupRepoProcessor backuprepo.BackupRepoProcessor
 }
 
 func ConnectDB() (*Database, error) {
@@ -47,8 +41,10 @@ func ConnectDB() (*Database, error) {
 	}
 
 	return &Database{
-		DB:             db,
-		StorageCreator: &storage.StorageCreatorImpl{},
+		DB: db,
+		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
+			StorageCreator: &storage.StorageCreatorImpl{},
+		},
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
@@ -34,6 +35,14 @@ type BackupRepoData struct {
 	*BackupRepo
 	StorageType string `db:"storage.type"`
 	StorageData string `db:"storage.data"`
+}
+
+type BackupRepoProcessor interface {
+	ProcessBackupRepo(backupRepoData *BackupRepoData) (*BackupRepo, error)
+}
+
+type BackupRepoProcessorImpl struct {
+	StorageCreator storage.StorageCreator
 }
 
 // NewBackupRepo creates a new BackupRepo instance
@@ -112,4 +121,28 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	}
 
 	return nil
+}
+
+func (p *BackupRepoProcessorImpl) ProcessBackupRepo(backupRepoData *BackupRepoData) (*BackupRepo, error) {
+
+	storageInstance, err := p.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
+	if err != nil {
+		return nil, err
+	}
+
+	password := backupRepoData.BackupRepo.GitPassword
+	if password != "" {
+		decryptedPassword, err := encryption.Decrypt([]byte(password))
+		if err != nil {
+			return nil, err
+		}
+		backupRepoData.BackupRepo.GitPassword = string(decryptedPassword)
+	}
+
+	backupRepo := backupRepoData.BackupRepo
+	backupRepo.Storage = storageInstance
+
+	backupRepo.InitializeRepo()
+
+	return backupRepo, nil
 }

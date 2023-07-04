@@ -21,6 +21,7 @@ type BackupRepoProcessor interface {
 type Database struct {
 	*sqlx.DB
 	StorageInserter
+	StorageCreator storage.StorageCreator
 	BackupRepoProcessor
 }
 
@@ -45,7 +46,10 @@ func ConnectDB() (*Database, error) {
 		return nil, err
 	}
 
-	return &Database{DB: db}, nil
+	return &Database{
+		DB:             db,
+		StorageCreator: &storage.StorageCreatorImpl{},
+	}, nil
 }
 
 func (db *Database) CloseDB() {

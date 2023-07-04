@@ -14,16 +14,18 @@ import (
 )
 
 type APIHandler struct {
-	Dispatcher   *backup.BackupDispatcher
-	Db           *database.Database
-	TemplatesDir string
+	Dispatcher     *backup.BackupDispatcher
+	Db             *database.Database
+	StorageCreator storage.StorageCreator
+	TemplatesDir   string
 }
 
 func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
 	return &APIHandler{
-		Dispatcher:   dispatcher,
-		Db:           db,
-		TemplatesDir: templatesDir,
+		Dispatcher:     dispatcher,
+		Db:             db,
+		StorageCreator: &storage.StorageCreatorImpl{},
+		TemplatesDir:   templatesDir,
 	}
 }
 
@@ -42,16 +44,9 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 
 	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + backupRepoData.Name
 
-	var storageInstance storage.Storage
-	switch backupRepoData.StorageType {
-	case "s3":
-		storageInstance, err = storage.NewS3StorageFromJson(backupRepoData.StorageData)
-		if err != nil {
-			http.Error(w, "Failed to create storage instance", http.StatusInternalServerError)
-			return
-		}
-	default:
-		http.Error(w, "Unknown storage type", http.StatusBadRequest)
+	storageInstance, err := a.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
+	if err != nil {
+		http.Error(w, "Failed to create storage instance", http.StatusInternalServerError)
 		return
 	}
 

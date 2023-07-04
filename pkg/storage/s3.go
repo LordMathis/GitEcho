@@ -47,25 +47,6 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func NewS3Storage(endpoint string, region string, accessKey string, secretKey string, bucketName string) (*S3Storage, error) {
-	session, err := getSession(endpoint, region, accessKey, secretKey)
-	if err != nil {
-		return nil, err
-	}
-
-	svc := s3.New(session)
-
-	return &S3Storage{
-		Session:    session,
-		S3Client:   svc,
-		Endpoint:   endpoint,
-		Region:     region,
-		AccessKey:  accessKey,
-		SecretKey:  secretKey,
-		BucketName: bucketName,
-	}, nil
-}
-
 func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
 	var s3Storage S3Storage
 	err := json.Unmarshal([]byte(storageData), &s3Storage)

@@ -3,7 +3,6 @@ package database
 import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
@@ -58,19 +57,10 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 }
 
 func (db *Database) ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
-	var storageInstance storage.Storage
 
-	switch backupRepoData.StorageType {
-	case "s3":
-		storageInstance, err := storage.NewS3StorageFromJson(string(backupRepoData.StorageData))
-		if err != nil {
-			return nil, err
-		}
-
-		err = storageInstance.DecryptKeys()
-		if err != nil {
-			return nil, err
-		}
+	storageInstance, err := db.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
+	if err != nil {
+		return nil, err
 	}
 
 	password := backupRepoData.BackupRepo.GitPassword

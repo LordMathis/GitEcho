@@ -33,10 +33,16 @@ func (m *MockBackupRepoInserter) InsertBackupRepo(backupRepo *backuprepo.BackupR
 	return nil
 }
 
+type MockRepositoryAdder struct{}
+
+func (m *MockRepositoryAdder) AddRepository(backupRepo *backuprepo.BackupRepo) {}
+
 func TestHandleCreateBackupRepo(t *testing.T) {
 	// Create the APIHandler instance with mock dependencies
 	apiHandler := &handlers.APIHandler{
-		Dispatcher: &backup.BackupDispatcher{},
+		Dispatcher: &backup.BackupDispatcher{
+			RepositoryAdder: &MockRepositoryAdder{},
+		},
 		Db: &database.Database{
 			BackupRepoInserter: &MockBackupRepoInserter{},
 		},

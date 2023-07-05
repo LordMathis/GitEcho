@@ -59,7 +59,7 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	a.Dispatcher.AddRepository(backupRepo)
+	a.Dispatcher.RepositoryAdder.AddRepository(backupRepo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

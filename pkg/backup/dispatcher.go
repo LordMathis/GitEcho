@@ -8,6 +8,10 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 )
 
+type RepositoryAdder interface {
+	AddRepository(repo *backuprepo.BackupRepo)
+}
+
 // BackupDispatcher is responsible for managing the backup process for multiple repositories.
 type BackupDispatcher struct {
 	repositories map[string]*backuprepo.BackupRepo
@@ -15,6 +19,7 @@ type BackupDispatcher struct {
 	stopChan     chan struct{}
 	addRepoChan  chan *backuprepo.BackupRepo
 	wg           sync.WaitGroup
+	RepositoryAdder
 }
 
 // NewBackupDispatcher creates a new BackupDispatcher instance.

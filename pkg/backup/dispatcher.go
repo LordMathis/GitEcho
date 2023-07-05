@@ -10,22 +10,30 @@ import (
 
 // BackupDispatcher is responsible for managing the backup process for multiple repositories.
 type BackupDispatcher struct {
-	repositories []backuprepo.BackupRepo
+	repositories map[string]*backuprepo.BackupRepo
+	mutex        sync.RWMutex
 	stopChan     chan struct{}
+	addRepoChan  chan *backuprepo.BackupRepo
 	wg           sync.WaitGroup
 }
 
 // NewBackupDispatcher creates a new BackupDispatcher instance.
 func NewBackupDispatcher() *BackupDispatcher {
 	return &BackupDispatcher{
-		repositories: make([]backuprepo.BackupRepo, 0),
+		repositories: make(map[string]*backuprepo.BackupRepo),
+		mutex:        sync.RWMutex{},
 		stopChan:     make(chan struct{}),
+		addRepoChan:  make(chan *backuprepo.BackupRepo),
 	}
 }
 
 // AddRepository adds a new repository to the backup dispatcher.
 func (d *BackupDispatcher) AddRepository(repo *backuprepo.BackupRepo) {
-	d.repositories = append(d.repositories, *repo)
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.repositories[repo.Name] = repo
+	d.addRepoChan <- repo
 }
 
 // Start starts the backup dispatcher and runs the backup process for each repository at the specified intervals.
@@ -33,15 +41,13 @@ func (d *BackupDispatcher) Start() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		for _, repo := range d.repositories {
-			d.scheduleBackup(&repo)
+		for _, repo := range d.getRepositories() {
+			d.scheduleBackup(repo)
 		}
 		for {
 			select {
-			case <-time.After(time.Second): // Adjust the interval as needed
-				for _, repo := range d.repositories {
-					d.scheduleBackup(&repo)
-				}
+			case repo := <-d.addRepoChan:
+				d.scheduleBackup(repo)
 			case <-d.stopChan:
 				return
 			}
@@ -58,9 +64,11 @@ func (d *BackupDispatcher) Stop() {
 // scheduleBackup schedules the backup process for a single repository.
 func (d *BackupDispatcher) scheduleBackup(repo *backuprepo.BackupRepo) {
 	go func() {
+		ticker := time.NewTicker(time.Duration(repo.PullInterval) * time.Minute)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-time.After(time.Duration(repo.PullInterval) * time.Minute): // Adjust the interval as needed
+			case <-ticker.C:
 				err := BackupAndUpload(*repo)
 				if err != nil {
 					log.Printf("Error backing up repository '%s': %v\n", repo.Name, err)
@@ -70,4 +78,16 @@ func (d *BackupDispatcher) scheduleBackup(repo *backuprepo.BackupRepo) {
 			}
 		}
 	}()
+}
+
+func (d *BackupDispatcher) getRepositories() []*backuprepo.BackupRepo {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	repos := make([]*backuprepo.BackupRepo, 0, len(d.repositories))
+	for _, repo := range d.repositories {
+		repos = append(repos, repo)
+	}
+
+	return repos
 }

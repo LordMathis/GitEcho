@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
@@ -32,7 +33,7 @@ func TestInsertBackupRepo(t *testing.T) {
 
 	// Set up the expected InsertS3Storage return value
 	mockStorageID := 123
-	mockS3Storage := getTestS3Storage(t)
+	mockS3Storage := testdata.GetTestS3Storage(t)
 	mockInsertStorage := func(s *storage.Storage) (int, error) {
 		return mockStorageID, nil
 	}
@@ -62,7 +63,7 @@ func TestInsertBackupRepo(t *testing.T) {
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	backupRepo := getTestBackupRepo(t, &mockS3Storage)
+	backupRepo := testdata.GetTestBackupRepo(t, &mockS3Storage)
 
 	err = database.InsertBackupRepo(&backupRepo)
 	assert.NoError(t, err)
@@ -88,7 +89,7 @@ func TestInsertS3Storage(t *testing.T) {
 
 	// Create a new instance of the Database and call the function
 	database := &database.Database{DB: sqlxDB}
-	s3Storage := getTestS3Storage(t)
+	s3Storage := testdata.GetTestS3Storage(t)
 
 	storageID, err := database.InsertS3Storage(&s3Storage)
 	assert.NoError(t, err)

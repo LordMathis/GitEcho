@@ -6,6 +6,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
@@ -41,7 +42,7 @@ func TestGetBackupRepoByName(t *testing.T) {
 	database := &database.Database{DB: sqlxDB}
 
 	s3storage := &storage.S3Storage{}
-	testBackupRepo := getTestBackupRepo(t, s3storage)
+	testBackupRepo := testdata.GetTestBackupRepo(t, s3storage)
 
 	mock.ExpectPrepare(regexp.QuoteMeta(`SELECT backup_repo.*, storage.type, storage.data
 						FROM backup_repo
@@ -91,8 +92,8 @@ func TestGetAllBackupRepos(t *testing.T) {
 	database := &database.Database{DB: sqlxDB}
 
 	s3storage := &storage.S3Storage{}
-	testBackupRepo1 := getTestBackupRepo(t, s3storage)
-	testBackupRepo2 := getTestBackupRepo(t, s3storage)
+	testBackupRepo1 := testdata.GetTestBackupRepo(t, s3storage)
+	testBackupRepo2 := testdata.GetTestBackupRepo(t, s3storage)
 	testBackupRepo2.StorageID = 1
 
 	mock.ExpectQuery(regexp.QuoteMeta(`

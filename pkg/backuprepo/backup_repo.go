@@ -14,13 +14,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string `json:"name" db:"name"`
-	SrcRepo      *git.Repository
-	RemoteURL    string `json:"remote_url" db:"remote_url"`
-	PullInterval int    `json:"pull_interval" db:"pull_interval"`
-	Storage      storage.Storage
-	StorageID    int    `db:"storage_id"`
-	LocalPath    string `db:"local_path"`
+	Name         string          `json:"name" db:"name"`
+	SrcRepo      *git.Repository `json:"-"`
+	RemoteURL    string          `json:"remote_url" db:"remote_url"`
+	PullInterval int             `json:"pull_interval" db:"pull_interval"`
+	Storage      storage.Storage `json:"-"`
+	StorageID    int             `json:"-" db:"storage_id"`
+	LocalPath    string          `json:"-" db:"local_path"`
 	Credentials  `json:"credentials"`
 }
 
@@ -33,8 +33,8 @@ type Credentials struct {
 // Utility struct BackupRepoData for db and api calls
 type BackupRepoData struct {
 	*BackupRepo
-	StorageType string `db:"storage.type"`
-	StorageData string `db:"storage.data"`
+	StorageType string `json:"storage_type" db:"storage.type"`
+	StorageData string `json:"storage_data" db:"storage.data"`
 }
 
 type BackupRepoProcessor interface {

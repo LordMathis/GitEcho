@@ -1,5 +1,7 @@
 # GitEcho
 
+![Go Tests](https://github.com/LordMathis/GitEcho/actions/workflows/go.yml/badge.svg)
+
 **Work in Progress**
 
 GitEcho is a backup tool for git repositories.

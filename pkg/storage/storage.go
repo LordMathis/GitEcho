@@ -24,17 +24,7 @@ func (c *StorageCreatorImpl) CreateStorage(storageType, storageData string) (Sto
 			return nil, err
 		}
 
-		s3storage, ok := storageInstance.(*S3Storage)
-		if !ok {
-			return nil, fmt.Errorf("failed to retype storageInstance to S3Storage")
-		}
-
-		err = s3storage.DecryptKeys()
-		if err != nil {
-			return nil, err
-		}
-
-		return s3storage, nil
+		return storageInstance, nil
 
 	default:
 		return nil, fmt.Errorf("unknown storage type")

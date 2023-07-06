@@ -10,7 +10,6 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
-	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/handlers"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,7 @@ func (m *MockBackupRepoProcessor) ProcessBackupRepo(backupRepoData *backuprepo.B
 // MockBackupRepoInserter is a mock implementation of the BackupRepoInserter interface
 type MockBackupRepoInserter struct{}
 
-func (m *MockBackupRepoInserter) InsertBackupRepo(backupRepo *backuprepo.BackupRepo) error {
+func (m *MockBackupRepoInserter) InsertBackupRepo(backupRepo *backuprepo.BackupRepo, storageID int) error {
 	// Implement the mock behavior
 	return nil
 }
@@ -37,16 +36,20 @@ type MockRepositoryAdder struct{}
 
 func (m *MockRepositoryAdder) AddRepository(backupRepo *backuprepo.BackupRepo) {}
 
+type MockStorageInserter struct{}
+
+func (m *MockStorageInserter) InsertStorage(s *storage.Storage) (int, error) {
+	return 0, nil
+}
+
 func TestHandleCreateBackupRepo(t *testing.T) {
 	// Create the APIHandler instance with mock dependencies
 	apiHandler := &handlers.APIHandler{
-		Dispatcher: &backup.BackupDispatcher{
-			RepositoryAdder: &MockRepositoryAdder{},
-		},
-		Db: &database.Database{
-			BackupRepoInserter: &MockBackupRepoInserter{},
-		},
+		RepositoryAdder:     &MockRepositoryAdder{},
+		Dispatcher:          &backup.BackupDispatcher{},
+		BackupRepoInserter:  &MockBackupRepoInserter{},
 		BackupRepoProcessor: &MockBackupRepoProcessor{},
+		StorageInserter:     &MockStorageInserter{},
 		TemplatesDir:        "",
 	}
 

@@ -16,7 +16,11 @@ import (
 type APIHandler struct {
 	Dispatcher          *backup.BackupDispatcher
 	Db                  *database.Database
+	RepositoryAdder     backup.RepositoryAdder
+	BackupReposGetter   database.BackupReposGetter
+	BackupRepoInserter  database.BackupRepoInserter
 	BackupRepoProcessor backuprepo.BackupRepoProcessor
+	StorageInserter     database.StorageInserter
 	TemplatesDir        string
 }
 
@@ -53,22 +57,28 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = a.Db.BackupRepoInserter.InsertBackupRepo(backupRepo)
+	storageID, err := a.StorageInserter.InsertStorage(&backupRepo.Storage)
+	if err != nil {
+		http.Error(w, "Failed to create storage configuration", http.StatusInternalServerError)
+		return
+	}
+
+	err = a.BackupRepoInserter.InsertBackupRepo(backupRepo, storageID)
 	if err != nil {
 		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
 		return
 	}
 
-	a.Dispatcher.RepositoryAdder.AddRepository(backupRepo)
+	a.RepositoryAdder.AddRepository(backupRepo)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
 }
 
-func (api *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
+func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
 	// Retrieve all backup repos from the database
-	backupRepos, err := api.Db.BackupReposGetter.GetAllBackupRepos()
+	backupRepos, err := a.BackupReposGetter.GetAllBackupRepos()
 	if err != nil {
 		// Handle the error appropriately, e.g., return an error response
 		http.Error(w, "Failed to retrieve backup repositories", http.StatusInternalServerError)

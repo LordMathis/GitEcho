@@ -17,11 +17,11 @@ import (
 type S3Storage struct {
 	Session    *session.Session `json:"-"`
 	S3Client   s3iface.S3API    `json:"-"`
-	Endpoint   string           `db:"endpoint"`
-	Region     string           `db:"region"`
-	AccessKey  string           `db:"access_key"`
-	SecretKey  string           `db:"secret_key"`
-	BucketName string           `db:"bucket_name"`
+	Endpoint   string           `json:"endpoint" db:"endpoint"`
+	Region     string           `json:"region" db:"region"`
+	AccessKey  string           `json:"access_key" db:"access_key"`
+	SecretKey  string           `json:"secret_key" db:"secret_key"`
+	BucketName string           `json:"bucket_name" db:"bucket_name"`
 }
 
 func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {

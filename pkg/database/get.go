@@ -2,6 +2,7 @@ package database
 
 import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 type BackupRepoNameGetter interface {
@@ -33,7 +34,17 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 		return nil, err
 	}
 
-	return db.BackupRepoProcessor.ProcessBackupRepo(&backupRepoData)
+	backupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(&backupRepoData)
+	if err != nil {
+		return nil, err
+	}
+
+	if s3Storage, ok := backupRepo.Storage.(*storage.S3Storage); ok {
+		s3Storage.DecryptKeys()
+		backupRepo.Storage = s3Storage
+	}
+
+	return backupRepo, nil
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
@@ -55,6 +66,11 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 		backupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(data)
 		if err != nil {
 			return nil, err
+		}
+
+		if s3Storage, ok := backupRepo.Storage.(*storage.S3Storage); ok {
+			s3Storage.DecryptKeys()
+			backupRepo.Storage = s3Storage
 		}
 
 		backupRepos[i] = backupRepo

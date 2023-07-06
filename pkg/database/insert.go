@@ -14,15 +14,10 @@ type StorageInserter interface {
 }
 
 type BackupRepoInserter interface {
-	InsertBackupRepo(backupRepo *backuprepo.BackupRepo) error
+	InsertBackupRepo(backupRepo *backuprepo.BackupRepo, storageID int) error
 }
 
-func (db *Database) InsertBackupRepo(backupRepo *backuprepo.BackupRepo) error {
-
-	storageID, err := db.StorageInserter.InsertStorage(&backupRepo.Storage)
-	if err != nil {
-		return err
-	}
+func (db *Database) InsertBackupRepo(backupRepo *backuprepo.BackupRepo, storageID int) error {
 
 	// Encrypt the password
 	password := backupRepo.GitPassword

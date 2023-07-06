@@ -12,10 +12,6 @@ import (
 
 type Database struct {
 	*sqlx.DB
-	StorageInserter
-	BackupRepoInserter
-	BackupRepoNameGetter
-	BackupReposGetter
 	BackupRepoProcessor backuprepo.BackupRepoProcessor
 }
 

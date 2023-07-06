@@ -6,20 +6,9 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
 	"github.com/LordMathis/GitEcho/pkg/database"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
-
-// MockS3StorageInserter implements the S3StorageInserter interface
-type MockStorageInserter struct {
-	InsertStorageFn func(s *storage.Storage) (int, error)
-}
-
-// InsertS3Storage calls the mock function
-func (m *MockStorageInserter) InsertStorage(s *storage.Storage) (int, error) {
-	return m.InsertStorageFn(s)
-}
 
 func TestInsertBackupRepo(t *testing.T) {
 	// Create a mock database connection
@@ -34,18 +23,11 @@ func TestInsertBackupRepo(t *testing.T) {
 	// Set up the expected InsertS3Storage return value
 	mockStorageID := 123
 	mockS3Storage := testdata.GetTestS3Storage(t)
-	mockInsertStorage := func(s *storage.Storage) (int, error) {
-		return mockStorageID, nil
-	}
-	inserter := &MockStorageInserter{
-		InsertStorageFn: mockInsertStorage,
-	}
 
 	// Create the Database instance using the mock connection
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	database := &database.Database{
-		DB:              sqlxDB,
-		StorageInserter: inserter,
+		DB: sqlxDB,
 	}
 
 	// Prepare the expected INSERT statement for backup_repo
@@ -65,7 +47,7 @@ func TestInsertBackupRepo(t *testing.T) {
 
 	backupRepo := testdata.GetTestBackupRepo(t, &mockS3Storage)
 
-	err = database.InsertBackupRepo(&backupRepo)
+	err = database.InsertBackupRepo(&backupRepo, mockStorageID)
 	assert.NoError(t, err)
 
 	err = mock.ExpectationsWereMet()

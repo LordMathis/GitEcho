@@ -19,15 +19,19 @@ type APIHandler struct {
 	RepositoryAdder     backup.RepositoryAdder
 	BackupReposGetter   database.BackupReposGetter
 	BackupRepoInserter  database.BackupRepoInserter
-	BackupRepoProcessor backuprepo.BackupRepoProcessor
 	StorageInserter     database.StorageInserter
+	BackupRepoProcessor backuprepo.BackupRepoProcessor
 	TemplatesDir        string
 }
 
 func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
 	return &APIHandler{
-		Dispatcher: dispatcher,
-		Db:         db,
+		Dispatcher:         dispatcher,
+		Db:                 db,
+		BackupReposGetter:  db,
+		BackupRepoInserter: db,
+		StorageInserter:    db,
+		RepositoryAdder:    dispatcher,
 		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
 			StorageCreator: &storage.StorageCreatorImpl{},
 		},

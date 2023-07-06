@@ -74,7 +74,7 @@ func (d *BackupDispatcher) scheduleBackup(repo *backuprepo.BackupRepo) {
 		for {
 			select {
 			case <-ticker.C:
-				err := BackupAndUpload(*repo)
+				err := BackupAndUpload(repo)
 				if err != nil {
 					log.Printf("Error backing up repository '%s': %v\n", repo.Name, err)
 				}

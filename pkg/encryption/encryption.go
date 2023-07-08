@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-var encryptionKey = []byte(os.Getenv("ENCRYPTION_KEY"))
+var encryptionKey = []byte(os.Getenv("GITECHO_ENCRYPTION_KEY"))
 
 // SetEncryptionKey sets the encryption key manually
 func SetEncryptionKey(key []byte) {

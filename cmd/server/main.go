@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 
-	encryptionKey := os.Getenv("ENCRYPTION_KEY")
+	encryptionKey := os.Getenv("GITECHO_ENCRYPTION_KEY")
 
 	// Check if the encryption key is provided
 	err := validateEncryptionKey(encryptionKey)
@@ -53,7 +53,13 @@ func main() {
 
 	router := setupRouter(apiHandler)
 
-	err = http.ListenAndServe(":8080", router)
+	port := os.Getenv("GITECHO_PORT")
+	if port == "" {
+		// Use a default port if the environment variable is not set
+		port = "8080"
+	}
+
+	err = http.ListenAndServe(":"+port, router)
 	if err != nil {
 		log.Fatalln("There's an error with the server:", err)
 	}
@@ -61,7 +67,7 @@ func main() {
 
 func validateEncryptionKey(encryptionKey string) error {
 	if encryptionKey == "" {
-		return fmt.Errorf("encryption key not set, please set the ENCRYPTION_KEY environment variable")
+		return fmt.Errorf("encryption key not set, please set the GITECHO_ENCRYPTION_KEY environment variable")
 	}
 
 	// Check if the encryption key has the correct size

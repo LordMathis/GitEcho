@@ -42,6 +42,7 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 		config.Credentials = credentials.NewStaticCredentials(accessKey, secretKey, "")
 	}
 
+	// TODO: Parse this info from JSON
 	config.DisableSSL = aws.Bool(true)
 	config.S3ForcePathStyle = aws.Bool(true)
 

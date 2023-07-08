@@ -20,7 +20,7 @@ import (
 
 func main() {
 
-	generateKey := flag.Bool("generate-key", false, "Generate encryption key and exit")
+	generateKey := flag.Bool("g", false, "Generate encryption key and exit")
 	flag.Parse()
 
 	if *generateKey {
@@ -29,17 +29,16 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		fmt.Println("Generated encryption key:", key)
+		fmt.Println("Generated encryption key:", string(key))
 		return
 	}
 
-	encryptionKey := os.Getenv("GITECHO_ENCRYPTION_KEY")
-
 	// Check if the encryption key is provided
-	err := validateEncryptionKey(encryptionKey)
+	key, err := encryption.ValidateEncryptionKey()
 	if err != nil {
 		log.Fatalln(err)
 	}
+	encryption.SetEncryptionKey(key)
 
 	db := initializeDatabase()
 	defer db.CloseDB()
@@ -63,20 +62,6 @@ func main() {
 	if err != nil {
 		log.Fatalln("There's an error with the server:", err)
 	}
-}
-
-func validateEncryptionKey(encryptionKey string) error {
-	if encryptionKey == "" {
-		return fmt.Errorf("encryption key not set, please set the GITECHO_ENCRYPTION_KEY environment variable")
-	}
-
-	// Check if the encryption key has the correct size
-	keySize := len(encryptionKey)
-	if keySize != 16 && keySize != 24 && keySize != 32 {
-		return fmt.Errorf("invalid encryption key size, encryption key must be 16, 24, or 32 bytes in length")
-	}
-
-	return nil
 }
 
 func initializeDatabase() *database.Database {

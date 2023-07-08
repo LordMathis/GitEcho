@@ -5,24 +5,27 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"os"
 )
 
-var encryptionKey = []byte(os.Getenv("GITECHO_ENCRYPTION_KEY"))
+var encryptionKey []byte
 
 // SetEncryptionKey sets the encryption key manually
 func SetEncryptionKey(key []byte) {
 	encryptionKey = key
 }
 
-func GenerateEncryptionKey() ([]byte, error) {
+func GenerateEncryptionKey() (string, error) {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return key, nil
+	fmt.Print(string(key))
+	keyBase64 := base64.StdEncoding.EncodeToString(key)
+	return keyBase64, nil
 }
 
 func Encrypt(data []byte) ([]byte, error) {
@@ -72,4 +75,26 @@ func Decrypt(encryptedData []byte) ([]byte, error) {
 	stream.XORKeyStream(decrypted, encrypted)
 
 	return decrypted, nil
+}
+
+func ValidateEncryptionKey() ([]byte, error) {
+
+	key := os.Getenv("GITECHO_ENCRYPTION_KEY")
+
+	if key == "" {
+		return nil, fmt.Errorf(`encryption key not set, please set the GITECHO_ENCRYPTION_KEY environment variable or run with -g flag to genereate an encryption key`)
+	}
+
+	decodedKey, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the encryption key has the correct size
+	keySize := len(decodedKey)
+	if keySize != 16 && keySize != 24 && keySize != 32 {
+		return nil, fmt.Errorf("invalid encryption key size, encryption key must be 16, 24, or 32 bytes in length")
+	}
+
+	return decodedKey, nil
 }

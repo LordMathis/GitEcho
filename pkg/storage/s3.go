@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -133,4 +134,70 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 	})
 
 	return err
+}
+
+func (s *S3Storage) DownloadDirectory(s3Path, localPath string) error {
+	params := &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.BucketName),
+		Prefix: aws.String(s3Path),
+	}
+
+	err := s.S3Client.ListObjectsV2Pages(params,
+		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+			for _, obj := range page.Contents {
+				// Construct the local file path
+				relPath, err := filepath.Rel(s3Path, *obj.Key)
+				if err != nil {
+					fmt.Printf("Failed to determine the relative path: %v\n", err)
+					continue
+				}
+				filePath := filepath.Join(localPath, relPath)
+
+				// Ensure the directory path exists
+				err = os.MkdirAll(filepath.Dir(filePath), 0755)
+				if err != nil {
+					fmt.Printf("Failed to create directory: %v\n", err)
+					continue
+				}
+
+				// Download the file
+				err = s.downloadFile(*obj.Key, filePath)
+				if err != nil {
+					fmt.Printf("Failed to download file: %v\n", err)
+				}
+			}
+			return true
+		})
+
+	if err != nil {
+		return fmt.Errorf("failed to list objects: %v", err)
+	}
+
+	return nil
+}
+
+func (s *S3Storage) downloadFile(s3Key, filePath string) error {
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(s3Key),
+	}
+
+	output, err := s.S3Client.GetObject(input)
+	if err != nil {
+		return fmt.Errorf("failed to get S3 object: %v", err)
+	}
+	defer output.Body.Close()
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file: %v", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, output.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %v", err)
+	}
+
+	return nil
 }

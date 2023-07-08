@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
+	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/handlers"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/stretchr/testify/assert"
@@ -50,13 +52,16 @@ func TestIntegration(t *testing.T) {
 	}()
 
 	s3Storage := &storage.S3Storage{
-		Endpoint:   "http://localhost:9000",
+		Endpoint:   "http://127.0.0.1:9000",
 		Region:     "",
 		AccessKey:  "gitechoaccesskey",
 		SecretKey:  "gitechosecretkey",
 		BucketName: "gitecho",
 	}
 	storageData, err := json.Marshal(s3Storage)
+	assert.NoError(t, err)
+
+	s3Storage, err = storage.NewS3StorageFromJson(string(storageData))
 	assert.NoError(t, err)
 
 	backupRepo := &backuprepo.BackupRepo{
@@ -79,6 +84,21 @@ func TestIntegration(t *testing.T) {
 	err = createBackupRepo(t, backupRepoData)
 	assert.NoError(t, err)
 
+	//TODO: Find better way to wait for backup
+	time.Sleep(2 * 60 * time.Second)
+
+	tempDir, err := os.MkdirTemp("", "test-repo-restore")
+	assert.NoError(t, err)
+
+	err = s3Storage.DownloadDirectory("test-repo", tempDir)
+	assert.NoError(t, err)
+
+	gitClient := gitutil.NewGitClient("", "", "")
+	repo, err := gitClient.OpenRepository(tempDir)
+	assert.NoError(t, err)
+
+	err = gitClient.PullChanges(repo)
+	assert.NoError(t, err)
 }
 
 func setupTestEnvVars(t *testing.T) {

@@ -34,11 +34,16 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 
 	if region != "" {
 		config.Region = aws.String(region)
+	} else {
+		config.Region = aws.String("us-east-1")
 	}
 
 	if accessKey != "" && secretKey != "" {
 		config.Credentials = credentials.NewStaticCredentials(accessKey, secretKey, "")
 	}
+
+	config.DisableSSL = aws.Bool(true)
+	config.S3ForcePathStyle = aws.Bool(true)
 
 	sess, err := session.NewSession(config)
 	if err != nil {
@@ -92,6 +97,7 @@ func (s *S3Storage) DecryptKeys() error {
 func (s *S3Storage) UploadDirectory(directoryPath string) error {
 
 	// WalkDir through the directory recursively
+	basePath := os.Getenv("GITECHO_DATA_PATH")
 	err := filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -110,7 +116,7 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 		defer f.Close()
 
 		// Prepare the S3 object key by preserving the directory structure
-		relPath, err := filepath.Rel(directoryPath, path)
+		relPath, err := filepath.Rel(basePath, path)
 		if err != nil {
 			return err
 		}

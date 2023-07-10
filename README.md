@@ -14,7 +14,7 @@ GitEcho is a backup tool for git repositories.
 
 ## Roadmap to First Release
 
-- [ ] Basic tests
+- [x] Basic tests
 - [ ] Basic Frontend
 - [ ] Comprehensive README
 - [ ] Licence

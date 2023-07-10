@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -10,96 +13,55 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/handlers"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 func main() {
 
-	TestInsertOrUpdateStorages()
+	generateKey := flag.Bool("g", false, "Generate encryption key and exit")
+	flag.Parse()
 
-	// generateKey := flag.Bool("g", false, "Generate encryption key and exit")
-	// flag.Parse()
+	if *generateKey {
+		key, err := encryption.GenerateEncryptionKey()
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	// if *generateKey {
-	// 	key, err := encryption.GenerateEncryptionKey()
-	// 	if err != nil {
-	// 		log.Fatalln(err)
-	// 	}
+		fmt.Println("Generated encryption key:", string(key))
+		return
+	}
 
-	// 	fmt.Println("Generated encryption key:", string(key))
-	// 	return
-	// }
-
-	// // Check if the encryption key is provided
-	// key, err := encryption.ValidateEncryptionKey()
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// encryption.SetEncryptionKey(key)
-
-	// db := initializeDatabase()
-	// defer db.CloseDB()
-
-	// dispatcher := initializeBackupDispatcher(db)
-	// dispatcher.Start()
-
-	// templatesDir := getTemplatesDirectory()
-
-	// apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
-
-	// router := setupRouter(apiHandler)
-
-	// port := os.Getenv("GITECHO_PORT")
-	// if port == "" {
-	// 	// Use a default port if the environment variable is not set
-	// 	port = "8080"
-	// }
-
-	// err = http.ListenAndServe(":"+port, router)
-	// if err != nil {
-	// 	log.Fatalln("There's an error with the server:", err)
-	// }
-}
-
-func TestInsertOrUpdateStorages() {
-
-	encryption.SetEncryptionKey([]byte("12345678901234567890123456789012"))
+	// Check if the encryption key is provided
+	key, err := encryption.ValidateEncryptionKey()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	encryption.SetEncryptionKey(key)
 
 	db := initializeDatabase()
 	defer db.CloseDB()
 
-	stor := &storage.S3Storage{
-		Endpoint:   "http://example.com",
-		Region:     "us-west-1",
-		AccessKey:  "access_key",
-		SecretKey:  "secret_key",
-		BucketName: "my-bucket",
+	dispatcher := initializeBackupDispatcher(db)
+	dispatcher.Start()
+
+	templatesDir := getTemplatesDirectory()
+
+	apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
+
+	router := setupRouter(apiHandler)
+
+	port := os.Getenv("GITECHO_PORT")
+	if port == "" {
+		// Use a default port if the environment variable is not set
+		port = "8080"
 	}
 
-	backupRepo := &backuprepo.BackupRepo{
-		Name:         "test-repo",
-		RemoteURL:    "https://github.com/example/test-repo.git",
-		PullInterval: 60,
-		LocalPath:    "/tmp",
-		Credentials: backuprepo.Credentials{
-			GitUsername: "username",
-			GitPassword: "password",
-			GitKeyPath:  "keypath",
-		},
-	}
-
-	backupRepo.Storages = make(map[string]storage.Storage)
-	backupRepo.Storages["test"] = stor
-
-	err := db.InsertOrUpdateBackupRepo(backupRepo)
+	err = http.ListenAndServe(":"+port, router)
 	if err != nil {
-		panic(err)
+		log.Fatalln("There's an error with the server:", err)
 	}
-
 }
 
 func initializeDatabase() *database.Database {

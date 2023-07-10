@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
@@ -58,30 +57,40 @@ func TestIntegration(t *testing.T) {
 		SecretKey:  "gitechosecretkey",
 		BucketName: "gitecho",
 	}
-	storageData, err := json.Marshal(s3Storage)
+
+	err = s3Storage.InitializeS3Storage()
 	assert.NoError(t, err)
 
-	s3Storage, err = storage.NewS3StorageFromJson(string(storageData))
-	assert.NoError(t, err)
-
-	backupRepo := &backuprepo.BackupRepo{
-		Name:         "test-repo",
-		PullInterval: 1,
-		RemoteURL:    "https://github.com/LordMathis/GitEcho",
-		Credentials: backuprepo.Credentials{
-			GitUsername: "",
-			GitPassword: "",
-			GitKeyPath:  "",
+	data := map[string]interface{}{
+		"name":          "test-repo",
+		"remote_url":    "https://github.com/LordMathis/GitEcho",
+		"pull_interval": 1,
+		"credentials": map[string]string{
+			"git_username": "",
+			"git_password": "",
+			"git_key_path": "",
+		},
+		"storage": map[string]interface{}{
+			"test": map[string]string{
+				"name":        "test",
+				"type":        "s3",
+				"endpoint":    "http://127.0.0.1:9000",
+				"region":      "",
+				"access_key":  "gitechoaccesskey",
+				"secret_key":  "gitechosecretkey",
+				"bucket_name": "gitecho",
+			},
 		},
 	}
 
-	backupRepoData := &backuprepo.BackupRepoData{
-		BackupRepo:  backupRepo,
-		StorageType: "s3",
-		StorageData: string(storageData),
+	// Encode the data to JSON
+	jsonData, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
 	}
 
-	err = createBackupRepo(t, backupRepoData)
+	err = createBackupRepo(t, jsonData)
 	assert.NoError(t, err)
 
 	//TODO: Find better way to wait for backup
@@ -111,13 +120,8 @@ func setupTestEnvVars(t *testing.T) {
 	os.Setenv("GITECHO_DATA_PATH", "/tmp")
 }
 
-func createBackupRepo(t *testing.T, backupRepoData *backuprepo.BackupRepoData) error {
+func createBackupRepo(t *testing.T, jsonData []byte) error {
 	// Perform the HTTP request to create the backup repository
-	jsonData, err := json.Marshal(backupRepoData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal backup repository data: %v", err)
-	}
-
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/backupRepos", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)

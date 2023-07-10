@@ -70,19 +70,28 @@ func NewS3StorageFromJson(storageData json.RawMessage) (*S3Storage, error) {
 		return nil, err
 	}
 
-	session, err := getSession(s3Storage.Endpoint, s3Storage.Region, s3Storage.AccessKey, s3Storage.SecretKey)
+	err = s3Storage.InitializeS3Storage()
 	if err != nil {
 		return nil, err
 	}
 
+	return &s3Storage, nil
+}
+
+func (s *S3Storage) InitializeS3Storage() error {
+	session, err := getSession(s.Endpoint, s.Region, s.AccessKey, s.SecretKey)
+	if err != nil {
+		return err
+	}
+
 	svc := s3.New(session)
 
-	s3Storage.Session = session
-	s3Storage.S3Client = svc
+	s.Session = session
+	s.S3Client = svc
 
-	s3Storage.S3StorageMarshaler = &S3StorageMarshalerImpl{}
+	s.S3StorageMarshaler = &S3StorageMarshalerImpl{}
 
-	return &s3Storage, nil
+	return nil
 }
 
 func (s *S3StorageMarshalerImpl) MarshalS3Storage(s3Storage *S3Storage) ([]byte, error) {

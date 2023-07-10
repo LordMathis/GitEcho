@@ -14,9 +14,11 @@ func BackupAndUpload(repo *backuprepo.BackupRepo) error {
 	}
 
 	// Upload the local directory to S3
-	err = repo.Storage.UploadDirectory(repo.LocalPath)
-	if err != nil {
-		return err
+	for _, storage := range repo.Storages {
+		err := storage.UploadDirectory(repo.LocalPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

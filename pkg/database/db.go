@@ -13,6 +13,7 @@ import (
 type Database struct {
 	*sqlx.DB
 	BackupRepoProcessor backuprepo.BackupRepoProcessor
+	StoragesInserter    StoragesInserter
 }
 
 func ConnectDB() (*Database, error) {
@@ -41,6 +42,7 @@ func ConnectDB() (*Database, error) {
 		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
 			StorageCreator: &storage.StorageCreatorImpl{},
 		},
+		StoragesInserter: &StoragesInserterImpl{},
 	}, nil
 }
 

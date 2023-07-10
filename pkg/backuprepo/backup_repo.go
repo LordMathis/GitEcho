@@ -1,10 +1,10 @@
 package backuprepo
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 
@@ -14,13 +14,12 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string          `json:"name" db:"name"`
-	SrcRepo      *git.Repository `json:"-"`
-	RemoteURL    string          `json:"remote_url" db:"remote_url"`
-	PullInterval int             `json:"pull_interval" db:"pull_interval"`
-	Storage      storage.Storage `json:"-"`
-	StorageID    int             `json:"-" db:"storage_id"`
-	LocalPath    string          `json:"-" db:"local_path"`
+	Name         string                     `json:"name" db:"name"`
+	SrcRepo      *git.Repository            `json:"-"`
+	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
+	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
+	Storages     map[string]storage.Storage `json:"storage"`
+	LocalPath    string                     `json:"-" db:"local_path"`
 	Credentials  `json:"credentials"`
 }
 
@@ -30,53 +29,21 @@ type Credentials struct {
 	GitKeyPath  string `json:"key_path" db:"git_key_path"`
 }
 
-// Utility struct BackupRepoData for db and api calls
-type BackupRepoData struct {
-	*BackupRepo
-	StorageType string `json:"storage_type" db:"storage.type"`
-	StorageData string `json:"storage_data" db:"storage.data"`
+type ParsedJSONRepo struct {
+	Name         string                     `json:"name" db:"name"`
+	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
+	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
+	LocalPath    string                     `json:"-" db:"local_path"`
+	Storages     map[string]json.RawMessage `json:"storage"`
+	Credentials  `json:"credentials"`
 }
 
 type BackupRepoProcessor interface {
-	ProcessBackupRepo(backupRepoData *BackupRepoData) (*BackupRepo, error)
+	ProcessBackupRepo(parsedJSONRepo *ParsedJSONRepo) (*BackupRepo, error)
 }
 
 type BackupRepoProcessorImpl struct {
 	StorageCreator storage.StorageCreator
-}
-
-// NewBackupRepo creates a new BackupRepo instance
-// srcRepoURL: the URL of the source repo to backup
-// pullInterval: the interval (in seconds) between each pull operation
-// s3bucket: the name of the S3 bucket to store the backups
-// localPath: the local path where the backups will be stored
-func NewBackupRepo(name string, remoteURL string, pullInterval int, localPath string, storage storage.Storage) (*BackupRepo, error) {
-
-	// Extract repository name from remote URL if not provided
-	if name == "" {
-		urlParts := strings.Split(remoteURL, "/")
-		name = strings.TrimSuffix(urlParts[len(urlParts)-1], ".git")
-	}
-
-	backup_repo := &BackupRepo{
-		Name:         name,
-		RemoteURL:    remoteURL,
-		PullInterval: pullInterval,
-		Storage:      storage,
-		LocalPath:    localPath,
-	}
-
-	err := ValidateBackupRepo(*backup_repo)
-	if err != nil {
-		return nil, err
-	}
-
-	err = backup_repo.InitializeRepo()
-	if err != nil {
-		return nil, err
-	}
-
-	return backup_repo, nil
 }
 
 func (b *BackupRepo) InitializeRepo() error {
@@ -123,24 +90,35 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	return nil
 }
 
-func (p *BackupRepoProcessorImpl) ProcessBackupRepo(backupRepoData *BackupRepoData) (*BackupRepo, error) {
+func (p *BackupRepoProcessorImpl) ProcessBackupRepo(parsedJSONRepo *ParsedJSONRepo) (*BackupRepo, error) {
 
-	storageInstance, err := p.StorageCreator.CreateStorage(backupRepoData.StorageType, backupRepoData.StorageData)
-	if err != nil {
-		return nil, err
+	backupRepo := &BackupRepo{
+		Name:         parsedJSONRepo.Name,
+		RemoteURL:    parsedJSONRepo.RemoteURL,
+		PullInterval: parsedJSONRepo.PullInterval,
+		LocalPath:    parsedJSONRepo.LocalPath,
+		Storages:     make(map[string]storage.Storage),
+		Credentials:  parsedJSONRepo.Credentials,
 	}
 
-	password := backupRepoData.BackupRepo.GitPassword
+	for name, storage := range parsedJSONRepo.Storages {
+
+		storageInstance, err := p.StorageCreator.CreateStorage(storage)
+		if err != nil {
+			return nil, err
+		}
+
+		backupRepo.Storages[name] = storageInstance
+	}
+
+	password := backupRepo.GitPassword
 	if password != "" {
 		decryptedPassword, err := encryption.Decrypt([]byte(password))
 		if err != nil {
 			return nil, err
 		}
-		backupRepoData.BackupRepo.GitPassword = string(decryptedPassword)
+		backupRepo.GitPassword = string(decryptedPassword)
 	}
-
-	backupRepo := backupRepoData.BackupRepo
-	backupRepo.Storage = storageInstance
 
 	backupRepo.InitializeRepo()
 

@@ -17,7 +17,7 @@ import (
 
 type MockBackupRepoProcessor struct{}
 
-func (m *MockBackupRepoProcessor) ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
+func (m *MockBackupRepoProcessor) ProcessBackupRepo(parsedJSONRepo *backuprepo.ParsedJSONRepo) (*backuprepo.BackupRepo, error) {
 	// Return a mock BackupRepo instance
 	return &backuprepo.BackupRepo{
 		// Set the required fields
@@ -27,7 +27,7 @@ func (m *MockBackupRepoProcessor) ProcessBackupRepo(backupRepoData *backuprepo.B
 // MockBackupRepoInserter is a mock implementation of the BackupRepoInserter interface
 type MockBackupRepoInserter struct{}
 
-func (m *MockBackupRepoInserter) InsertBackupRepo(backupRepo *backuprepo.BackupRepo, storageID int) error {
+func (m *MockBackupRepoInserter) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) error {
 	// Implement the mock behavior
 	return nil
 }
@@ -49,20 +49,18 @@ func TestHandleCreateBackupRepo(t *testing.T) {
 		Dispatcher:          &backup.BackupDispatcher{},
 		BackupRepoInserter:  &MockBackupRepoInserter{},
 		BackupRepoProcessor: &MockBackupRepoProcessor{},
-		StorageInserter:     &MockStorageInserter{},
 		TemplatesDir:        "",
 	}
 
-	backupRepo := testdata.GetTestBackupRepo(t, &storage.S3Storage{})
-
-	backupRepoData := &backuprepo.BackupRepoData{
-		BackupRepo:  &backupRepo,
-		StorageType: "s3",
-		StorageData: "data",
+	type APIS3Storage struct {
+		*storage.S3Storage
+		Type string `json:"type"`
 	}
 
-	// Prepare the request payload
-	payload, err := json.Marshal(backupRepoData)
+	backupRepo := testdata.GetTestBackupRepo(t)
+	backupRepo.Storages["test"] = APIS3Storage{&storage.S3Storage{}, "s3"}
+
+	payload, err := json.Marshal(backupRepo)
 	assert.NoError(t, err)
 
 	// Create a new HTTP request

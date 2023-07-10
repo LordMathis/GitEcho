@@ -19,7 +19,6 @@ type APIHandler struct {
 	RepositoryAdder     backup.RepositoryAdder
 	BackupReposGetter   database.BackupReposGetter
 	BackupRepoInserter  database.BackupRepoInserter
-	StorageInserter     database.StorageInserter
 	BackupRepoProcessor backuprepo.BackupRepoProcessor
 	TemplatesDir        string
 }
@@ -30,7 +29,6 @@ func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, t
 		Db:                 db,
 		BackupReposGetter:  db,
 		BackupRepoInserter: db,
-		StorageInserter:    db,
 		RepositoryAdder:    dispatcher,
 		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
 			StorageCreator: &storage.StorageCreatorImpl{},
@@ -45,29 +43,23 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var backupRepoData backuprepo.BackupRepoData
-	err := json.NewDecoder(r.Body).Decode(&backupRepoData)
+	var parsedJSONRepo backuprepo.ParsedJSONRepo
+	err := json.NewDecoder(r.Body).Decode(&parsedJSONRepo)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + backupRepoData.Name
-	backupRepoData.LocalPath = localPath
+	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + parsedJSONRepo.Name
+	parsedJSONRepo.LocalPath = localPath
 
-	backupRepo, err := a.BackupRepoProcessor.ProcessBackupRepo(&backupRepoData)
+	backupRepo, err := a.BackupRepoProcessor.ProcessBackupRepo(&parsedJSONRepo)
 	if err != nil {
 		http.Error(w, "Failed to create backup repository", http.StatusInternalServerError)
 		return
 	}
 
-	storageID, err := a.StorageInserter.InsertStorage(&backupRepo.Storage)
-	if err != nil {
-		http.Error(w, "Failed to create storage configuration", http.StatusInternalServerError)
-		return
-	}
-
-	err = a.BackupRepoInserter.InsertBackupRepo(backupRepo, storageID)
+	err = a.BackupRepoInserter.InsertOrUpdateBackupRepo(backupRepo)
 	if err != nil {
 		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
 		return

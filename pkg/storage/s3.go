@@ -16,13 +16,22 @@ import (
 )
 
 type S3Storage struct {
-	Session    *session.Session `json:"-"`
-	S3Client   s3iface.S3API    `json:"-"`
-	Endpoint   string           `json:"endpoint" db:"endpoint"`
-	Region     string           `json:"region" db:"region"`
-	AccessKey  string           `json:"access_key" db:"access_key"`
-	SecretKey  string           `json:"secret_key" db:"secret_key"`
-	BucketName string           `json:"bucket_name" db:"bucket_name"`
+	S3StorageMarshaler S3StorageMarshaler `json:"-"`
+	Session            *session.Session   `json:"-"`
+	S3Client           s3iface.S3API      `json:"-"`
+	Name               string             `json:"name"`
+	Endpoint           string             `json:"endpoint"`
+	Region             string             `json:"region"`
+	AccessKey          string             `json:"access_key"`
+	SecretKey          string             `json:"secret_key"`
+	BucketName         string             `json:"bucket_name"`
+}
+
+type S3StorageMarshaler interface {
+	MarshalS3Storage(s3Storage *S3Storage) ([]byte, error)
+}
+
+type S3StorageMarshalerImpl struct {
 }
 
 func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {
@@ -54,9 +63,9 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
+func NewS3StorageFromJson(storageData json.RawMessage) (*S3Storage, error) {
 	var s3Storage S3Storage
-	err := json.Unmarshal([]byte(storageData), &s3Storage)
+	err := json.Unmarshal(storageData, &s3Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +80,40 @@ func NewS3StorageFromJson(storageData string) (*S3Storage, error) {
 	s3Storage.Session = session
 	s3Storage.S3Client = svc
 
+	s3Storage.S3StorageMarshaler = &S3StorageMarshalerImpl{}
+
 	return &s3Storage, nil
+}
+
+func (s *S3StorageMarshalerImpl) MarshalS3Storage(s3Storage *S3Storage) ([]byte, error) {
+
+	// Encrypt the access key and secret key
+	encryptedAccessKey, err := encryption.Encrypt([]byte(s3Storage.AccessKey))
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedSecretKey, err := encryption.Encrypt([]byte(s3Storage.SecretKey))
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new instance of S3Storage with encrypted keys
+	encryptedS3Storage := &S3Storage{
+		Endpoint:   s3Storage.Endpoint,
+		Region:     s3Storage.Region,
+		AccessKey:  string(encryptedAccessKey),
+		SecretKey:  string(encryptedSecretKey),
+		BucketName: s3Storage.BucketName,
+	}
+
+	// Encode the struct fields as JSON
+	dataJSON, err := json.Marshal(encryptedS3Storage)
+	if err != nil {
+		return nil, err
+	}
+
+	return dataJSON, err
 }
 
 func (s *S3Storage) DecryptKeys() error {
@@ -143,17 +185,17 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 	return err
 }
 
-func (s *S3Storage) DownloadDirectory(s3Path, localPath string) error {
+func (s *S3Storage) DownloadDirectory(remotePath, localPath string) error {
 	params := &s3.ListObjectsV2Input{
 		Bucket: aws.String(s.BucketName),
-		Prefix: aws.String(s3Path),
+		Prefix: aws.String(remotePath),
 	}
 
 	err := s.S3Client.ListObjectsV2Pages(params,
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 			for _, obj := range page.Contents {
 				// Construct the local file path
-				relPath, err := filepath.Rel(s3Path, *obj.Key)
+				relPath, err := filepath.Rel(remotePath, *obj.Key)
 				if err != nil {
 					fmt.Printf("Failed to determine the relative path: %v\n", err)
 					continue

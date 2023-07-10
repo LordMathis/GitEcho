@@ -1,148 +1,127 @@
 package database_test
 
 import (
-	"regexp"
+	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
 	"github.com/LordMathis/GitEcho/pkg/database"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
 )
 
 type MockBackupRepoProcessor struct {
-	ProcessBackupRepoFn func(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error)
+	Result *backuprepo.BackupRepo
 }
 
-func (m *MockBackupRepoProcessor) ProcessBackupRepo(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
-	return m.ProcessBackupRepoFn(backupRepoData)
-}
-
-var mockBackupRepoProcessor = &MockBackupRepoProcessor{
-	ProcessBackupRepoFn: func(backupRepoData *backuprepo.BackupRepoData) (*backuprepo.BackupRepo, error) {
-		storageInstance := &storage.S3Storage{}
-		backupRepoData.BackupRepo.Storage = storageInstance
-		return backupRepoData.BackupRepo, nil
-	},
+// ProcessBackupRepo is a mock implementation of the ProcessBackupRepo method
+func (m *MockBackupRepoProcessor) ProcessBackupRepo(parsedJSONRepo *backuprepo.ParsedJSONRepo) (*backuprepo.BackupRepo, error) {
+	return m.Result, nil
 }
 
 func TestGetBackupRepoByName(t *testing.T) {
-	// Create a mock database connection
 	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("Failed to create mock database connection: %v", err)
+		t.Fatalf("failed to create mock: %s", err)
 	}
 	defer db.Close()
 
-	// Create the Database instance using the mock connection
-	sqlxDB := sqlx.NewDb(db, "sqlmock")
-	database := &database.Database{DB: sqlxDB}
+	name := "backup1"
 
-	s3storage := &storage.S3Storage{}
-	testBackupRepo := testdata.GetTestBackupRepo(t, s3storage)
-
-	mock.ExpectPrepare(regexp.QuoteMeta(`SELECT backup_repo.*, storage.type, storage.data
-						FROM backup_repo
-						INNER JOIN storage ON backup_repo.storage_id = storage.id
-						WHERE backup_repo.name = $1`)).
-		ExpectQuery().
-		WithArgs("test-repo").
+	// Prepare the expectation for the SELECT statement to fetch the backup repo
+	mock.ExpectPrepare("SELECT name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path FROM backup_repo WHERE name = ?").
+		ExpectQuery().WithArgs(name).
 		WillReturnRows(
-			sqlmock.NewRows([]string{
-				"name", "pull_interval", "storage_id", "local_path", "remote_url", "git_username", "git_password", "git_key_path", "storage.type", "storage.data",
-			}).AddRow(
-				testBackupRepo.Name,
-				testBackupRepo.PullInterval,
-				"0",
-				testBackupRepo.LocalPath,
-				testBackupRepo.RemoteURL,
-				testBackupRepo.GitUsername,
-				testBackupRepo.GitPassword,
-				testBackupRepo.GitKeyPath,
-				"s3",
-				"data",
-			),
+			sqlmock.NewRows([]string{"name", "pull_interval", "local_path", "remote_url", "git_username", "git_password", "git_key_path"}).
+				AddRow(name, 60, "/path/to/local", "https://remote.git", "username", "password", "/path/to/key"),
 		)
 
-	// Assign the mock BackupRepoProcessor to the Database
-	database.BackupRepoProcessor = mockBackupRepoProcessor
+	// Prepare the expectation for the SELECT statement to fetch the storages
+	mock.ExpectPrepare("SELECT s.name, s.type, s.data FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name WHERE b.backup_repo_name = \\$1").
+		ExpectQuery().WithArgs(name).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"name", "type", "data"}).
+				AddRow("storage1", "s3", `{"key": "value"}`).
+				AddRow("storage2", "local", `{"key": "value"}`),
+		)
 
-	// Call the function under test
-	result, err := database.GetBackupRepoByName("test-repo")
-	assert.NoError(t, err)
-	assert.Equal(t, testBackupRepo, *result)
+	testBackupRepo := testdata.GetTestBackupRepo(t)
+	storage1 := testdata.GetTestS3Storage(t)
+	storage2 := testdata.GetTestS3Storage(t)
+
+	testBackupRepo.Storages["storage1"] = &storage1
+	testBackupRepo.Storages["storage2"] = &storage2
+
+	// Create a Database instance with the mock BackupRepoProcessor and DB
+	database := &database.Database{
+		DB: sqlx.NewDb(db, "sqlmock"),
+		BackupRepoProcessor: &MockBackupRepoProcessor{
+			Result: &testBackupRepo,
+		},
+	}
+
+	// Execute the function under test
+	backupRepo, err := database.GetBackupRepoByName(name)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !reflect.DeepEqual(backupRepo, &testBackupRepo) {
+		t.Errorf("unexpected backupRepo values:\nexpected: %+v\ngot: %+v", testBackupRepo, backupRepo)
+	}
 
 	err = mock.ExpectationsWereMet()
-	assert.NoError(t, err)
+	if err != nil {
+		t.Errorf("unmet expectations: %s", err)
+	}
 }
 
 func TestGetAllBackupRepos(t *testing.T) {
-	// Create a mock database connection
 	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("Failed to create mock database connection: %v", err)
+		t.Fatalf("failed to create mock: %s", err)
 	}
 	defer db.Close()
 
-	// Create the Database instance using the mock connection
-	sqlxDB := sqlx.NewDb(db, "sqlmock")
-	database := &database.Database{DB: sqlxDB}
+	// Prepare the expectation for the SELECT statement to fetch all backup repos
+	mock.ExpectPrepare("SELECT name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path FROM backup_repo").
+		ExpectQuery().
+		WillReturnRows(
+			sqlmock.NewRows([]string{"name", "pull_interval", "local_path", "remote_url", "git_username", "git_password", "git_key_path"}).
+				AddRow("test-repo", 60, "/tmp", "https://github.com/example/test-repo.git", "username", "password", "keypath"),
+		)
 
-	s3storage := &storage.S3Storage{}
-	testBackupRepo1 := testdata.GetTestBackupRepo(t, s3storage)
-	testBackupRepo2 := testdata.GetTestBackupRepo(t, s3storage)
-	testBackupRepo2.StorageID = 1
+	// Prepare the expectation for the SELECT statement to fetch the storages for the test-repo
+	mock.ExpectPrepare("SELECT s.name, s.type, s.data FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name WHERE b.backup_repo_name = \\$1").
+		ExpectQuery().WithArgs("test-repo").
+		WillReturnRows(
+			sqlmock.NewRows([]string{"name", "type", "data"}).
+				AddRow("s3-storage", "s3", `{"endpoint": "test-endpoint", "region": "test-region", "access_key": "test-access-key", "secret_key": "test-secret-key", "bucket_name": "test-bucket"}`),
+		)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT backup_repo.*, storage.type, storage.data
-		FROM backup_repo
-		INNER JOIN storage ON backup_repo.storage_id = storage.id
-	`)).WillReturnRows(
-		sqlmock.NewRows([]string{
-			"name", "pull_interval", "storage_id", "local_path", "remote_url", "git_username", "git_password", "git_key_path", "storage.type", "storage.data",
-		}).
-			AddRow(
-				testBackupRepo1.Name,
-				testBackupRepo1.PullInterval,
-				"0",
-				testBackupRepo1.LocalPath,
-				testBackupRepo1.RemoteURL,
-				testBackupRepo1.GitUsername,
-				testBackupRepo1.GitPassword,
-				testBackupRepo1.GitKeyPath,
-				"s3",
-				"data",
-			).
-			AddRow(
-				testBackupRepo2.Name,
-				testBackupRepo2.PullInterval,
-				"1",
-				testBackupRepo2.LocalPath,
-				testBackupRepo2.RemoteURL,
-				testBackupRepo2.GitUsername,
-				testBackupRepo2.GitPassword,
-				testBackupRepo2.GitKeyPath,
-				"s3",
-				"data",
-			),
-	)
+	testBackupRepo := testdata.GetTestBackupRepo(t)
 
-	// Assign the mock BackupRepoProcessor to the Database
-	database.BackupRepoProcessor = mockBackupRepoProcessor
+	// Create a Database instance with the mock BackupRepoProcessor and DB
+	database := &database.Database{
+		DB: sqlx.NewDb(db, "sqlmock"),
+		BackupRepoProcessor: &MockBackupRepoProcessor{
+			Result: &testBackupRepo,
+		},
+	}
 
-	// Call the function under test
-	result, err := database.GetAllBackupRepos()
-	assert.NoError(t, err)
+	// Execute the function under test
+	backupRepos, err := database.GetAllBackupRepos()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 
-	// Prepare the expected result
-	expectedResult := []*backuprepo.BackupRepo{&testBackupRepo1, &testBackupRepo2}
+	// Assert the number of returned backupRepos
+	if len(backupRepos) != 1 {
+		t.Errorf("unexpected number of backupRepos, expected 1, got %d", len(backupRepos))
+	}
 
-	// Assert the expected result
-	assert.Equal(t, expectedResult, result)
-
-	err = mock.ExpectationsWereMet()
-	assert.NoError(t, err)
+	if !reflect.DeepEqual(backupRepos[0], &testBackupRepo) {
+		t.Errorf("unexpected backupRepo values:\nexpected: %+v\ngot: %+v", &testBackupRepo, backupRepos[0])
+	}
 }

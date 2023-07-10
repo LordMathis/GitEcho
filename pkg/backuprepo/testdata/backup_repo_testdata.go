@@ -17,17 +17,19 @@ func GetTestS3Storage(t *testing.T) storage.S3Storage {
 	}
 }
 
-func GetTestBackupRepo(t *testing.T, s *storage.S3Storage) backuprepo.BackupRepo {
-	return backuprepo.BackupRepo{
+func GetTestBackupRepo(t *testing.T) backuprepo.BackupRepo {
+	repo := backuprepo.BackupRepo{
 		Name:         "test-repo",
+		RemoteURL:    "https://github.com/example/test-repo.git",
 		PullInterval: 60,
-		RemoteURL:    "https://example.com",
 		LocalPath:    "/tmp",
-		Storage:      s,
+		Storages:     make(map[string]storage.Storage),
 		Credentials: backuprepo.Credentials{
-			GitUsername: "test-username",
-			GitPassword: "test-password",
-			GitKeyPath:  "test-keypath",
+			GitUsername: "username",
+			GitPassword: "password",
+			GitKeyPath:  "keypath",
 		},
 	}
+
+	return repo
 }

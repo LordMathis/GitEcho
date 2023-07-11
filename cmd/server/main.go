@@ -105,11 +105,18 @@ func getTemplatesDirectory() string {
 func setupRouter(apiHandler *handlers.APIHandler) *chi.Mux {
 	router := chi.NewRouter()
 
+	staticPath := filepath.Join(getTemplatesDirectory(), "static")
+	staticURLPattern := "/static/*"
+
 	// Set up middleware
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"}, // Add your allowed origins here
+	}))
+
+	router.Get(staticURLPattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))).ServeHTTP(w, r)
 	}))
 
 	router.Post("/api/v1/backupRepos", apiHandler.HandleCreateBackupRepo)

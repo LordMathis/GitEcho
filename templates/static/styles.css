@@ -1,0 +1,26 @@
+.left-panel {
+    float: left;
+    width: 30%;
+    padding: 20px;
+}
+
+.right-panel {
+    float: right;
+    width: 70%;
+    padding: 20px;
+}
+
+.backup-repo-item {
+    margin-bottom: 10px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+}
+
+.required-label::after {
+    content: "*";
+    color: red;
+}

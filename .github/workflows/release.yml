@@ -6,7 +6,7 @@ on:
       - v*
 
 env:
-  IMAGE_NAME: GitEcho
+  IMAGE_NAME: gitecho
 
 jobs:
   # Push image to GitHub Packages.

@@ -5,13 +5,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o app ./cmd/server
+RUN go build -o gitecho ./cmd/server
 
 # Use a minimal Alpine-based image as the production image
 FROM alpine:latest
 WORKDIR /app
-COPY --from=build /app/app .
+COPY --from=build /app/gitecho .
 
 # Set the entry point for the container
-ENTRYPOINT ["./app"]
+ENTRYPOINT ["./gitecho"]
 EXPOSE 8080

@@ -10,6 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/rubenv/sql-migrate v1.5.1
 	github.com/stretchr/testify v1.8.0
 )

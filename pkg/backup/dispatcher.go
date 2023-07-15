@@ -17,6 +17,7 @@ type BackupDispatcher struct {
 	repositories map[string]*backuprepo.BackupRepo
 	mutex        sync.RWMutex
 	stopChan     chan struct{}
+	stopChannels map[string]chan struct{}
 	addRepoChan  chan *backuprepo.BackupRepo
 	wg           sync.WaitGroup
 	RepositoryAdder
@@ -27,7 +28,7 @@ func NewBackupDispatcher() *BackupDispatcher {
 	return &BackupDispatcher{
 		repositories: make(map[string]*backuprepo.BackupRepo),
 		mutex:        sync.RWMutex{},
-		stopChan:     make(chan struct{}),
+		stopChannels: make(map[string]chan struct{}),
 		addRepoChan:  make(chan *backuprepo.BackupRepo),
 	}
 }
@@ -37,8 +38,23 @@ func (d *BackupDispatcher) AddRepository(repo *backuprepo.BackupRepo) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	if existingRepo, ok := d.repositories[repo.Name]; ok {
+		// Repository with the same name already exists, unschedule it
+		d.unscheduleBackup(existingRepo)
+	}
+
 	d.repositories[repo.Name] = repo
-	d.addRepoChan <- repo
+	d.scheduleBackup(repo)
+}
+
+func (d *BackupDispatcher) DeleteRepository(name string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	if repo, ok := d.repositories[name]; ok {
+		d.unscheduleBackup(repo)
+		delete(d.repositories, name)
+	}
 }
 
 // Start starts the backup dispatcher and runs the backup process for each repository at the specified intervals.
@@ -49,14 +65,9 @@ func (d *BackupDispatcher) Start() {
 		for _, repo := range d.getRepositories() {
 			d.scheduleBackup(repo)
 		}
-		for {
-			select {
-			case repo := <-d.addRepoChan:
-				d.scheduleBackup(repo)
-			case <-d.stopChan:
-				return
-			}
-		}
+
+		<-d.stopChan
+
 	}()
 }
 
@@ -80,9 +91,19 @@ func (d *BackupDispatcher) scheduleBackup(repo *backuprepo.BackupRepo) {
 				}
 			case <-d.stopChan:
 				return
+			case <-d.stopChannels[repo.Name]:
+				return
 			}
 		}
 	}()
+}
+
+func (d *BackupDispatcher) unscheduleBackup(repo *backuprepo.BackupRepo) {
+	if stopChan, ok := d.stopChannels[repo.Name]; ok {
+		// Send a signal to stop the backup process
+		close(stopChan)
+		delete(d.stopChannels, repo.Name)
+	}
 }
 
 func (d *BackupDispatcher) getRepositories() []*backuprepo.BackupRepo {

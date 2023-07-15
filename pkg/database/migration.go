@@ -18,7 +18,7 @@ func (db *Database) MigrateDB() error {
 	}
 
 	// Construct the absolute path to the migrations directory
-	migrationsDir := filepath.Join(currentDir, "..", "..", "pkg", "database", "migrations")
+	migrationsDir := filepath.Join(currentDir, "..", "pkg", "database", "migrations")
 
 	migrations := &migrate.FileMigrationSource{
 		Dir: migrationsDir,

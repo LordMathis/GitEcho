@@ -119,8 +119,8 @@ func setupRouter(apiHandler *handlers.APIHandler) *chi.Mux {
 		http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))).ServeHTTP(w, r)
 	}))
 
-	router.Post("/api/v1/backupRepos", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/backupRepos", apiHandler.HandleGetBackupRepos)
+	router.Post("/api/v1/repository", apiHandler.HandleCreateBackupRepo)
+	router.Get("/api/v1/repository/{name?}", apiHandler.HandleGetBackupRepos)
 	router.Get("/", apiHandler.HandleIndex)
 
 	return router

@@ -11,25 +11,28 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 type APIHandler struct {
-	Dispatcher          *backup.BackupDispatcher
-	Db                  *database.Database
-	RepositoryAdder     backup.RepositoryAdder
-	BackupReposGetter   database.BackupReposGetter
-	BackupRepoInserter  database.BackupRepoInserter
-	BackupRepoProcessor backuprepo.BackupRepoProcessor
-	TemplatesDir        string
+	Dispatcher           *backup.BackupDispatcher
+	Db                   *database.Database
+	RepositoryAdder      backup.RepositoryAdder
+	BackupRepoNameGetter database.BackupRepoNameGetter
+	BackupReposGetter    database.BackupReposGetter
+	BackupRepoInserter   database.BackupRepoInserter
+	BackupRepoProcessor  backuprepo.BackupRepoProcessor
+	TemplatesDir         string
 }
 
 func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
 	return &APIHandler{
-		Dispatcher:         dispatcher,
-		Db:                 db,
-		BackupReposGetter:  db,
-		BackupRepoInserter: db,
-		RepositoryAdder:    dispatcher,
+		Dispatcher:           dispatcher,
+		Db:                   db,
+		BackupRepoNameGetter: db,
+		BackupReposGetter:    db,
+		BackupRepoInserter:   db,
+		RepositoryAdder:      dispatcher,
 		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
 			StorageCreator: &storage.StorageCreatorImpl{},
 		},
@@ -73,6 +76,29 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
+
+	name := chi.URLParam(r, "name")
+	if name != "" {
+		// Handle request for a specific backup repo
+		backupRepo, err := a.BackupRepoNameGetter.GetBackupRepoByName(name)
+		if err != nil {
+			// Handle error
+			http.Error(w, "Failed to retrieve backup repository", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert backup repo to JSON and send response
+		response, err := json.Marshal(backupRepo)
+		if err != nil {
+			http.Error(w, "Failed to serialize backup repositories", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(response)
+		return
+	}
+
 	// Retrieve all backup repos from the database
 	backupRepos, err := a.BackupReposGetter.GetAllBackupRepos()
 	if err != nil {

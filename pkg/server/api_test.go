@@ -1,4 +1,4 @@
-package handlers_test
+package server_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo/testdata"
-	"github.com/LordMathis/GitEcho/pkg/handlers"
+	"github.com/LordMathis/GitEcho/pkg/server"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +44,7 @@ func (m *MockStorageInserter) InsertStorage(s *storage.Storage) (int, error) {
 
 func TestHandleCreateBackupRepo(t *testing.T) {
 	// Create the APIHandler instance with mock dependencies
-	apiHandler := &handlers.APIHandler{
+	apiHandler := &server.APIHandler{
 		RepositoryAdder:     &MockRepositoryAdder{},
 		Dispatcher:          &backup.BackupDispatcher{},
 		BackupRepoInserter:  &MockBackupRepoInserter{},

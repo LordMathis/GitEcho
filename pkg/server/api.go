@@ -1,44 +1,13 @@
-package handlers
+package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
-	"github.com/LordMathis/GitEcho/pkg/database"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/go-chi/chi/v5"
 )
-
-type APIHandler struct {
-	Dispatcher           *backup.BackupDispatcher
-	Db                   *database.Database
-	RepositoryAdder      backup.RepositoryAdder
-	BackupRepoNameGetter database.BackupRepoNameGetter
-	BackupReposGetter    database.BackupReposGetter
-	BackupRepoInserter   database.BackupRepoInserter
-	BackupRepoProcessor  backuprepo.BackupRepoProcessor
-	TemplatesDir         string
-}
-
-func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
-	return &APIHandler{
-		Dispatcher:           dispatcher,
-		Db:                   db,
-		BackupRepoNameGetter: db,
-		BackupReposGetter:    db,
-		BackupRepoInserter:   db,
-		RepositoryAdder:      dispatcher,
-		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
-			StorageCreator: &storage.StorageCreatorImpl{},
-		},
-		TemplatesDir: templatesDir,
-	}
-}
 
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -122,18 +91,22 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 	w.Write(backupReposJSON)
 }
 
-func (a *APIHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
+func (a *APIHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	// Get the repository name from the URL/query parameters
+	name := chi.URLParam(r, "name")
+	// Alternatively, if using query parameters: name := r.URL.Query().Get("name")
 
-	templatePah := filepath.Join(a.TemplatesDir, "index.html")
-	tmpl, err := template.ParseFiles(templatePah)
+	// Delete the backup repository from the database
+	err := a.Db.DeleteBackupRepo(name)
 	if err != nil {
-		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		// Handle the error (e.g., return appropriate HTTP response)
+		http.Error(w, "Failed to delete backup repository", http.StatusInternalServerError)
 		return
 	}
 
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		http.Error(w, "Failed to render template", http.StatusInternalServerError)
-		return
-	}
+	// Delete the backup repository from the dispatcher
+	a.Dispatcher.DeleteRepository(name)
+
+	// Return a success response
+	w.WriteHeader(http.StatusOK)
 }

@@ -8,14 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
-	"github.com/LordMathis/GitEcho/pkg/handlers"
+	"github.com/LordMathis/GitEcho/pkg/server"
 )
 
 func main() {
@@ -48,9 +44,8 @@ func main() {
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
-
-	router := setupRouter(apiHandler)
+	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
+	router := server.SetupRouter(apiHandler)
 
 	port := os.Getenv("GITECHO_PORT")
 	if port == "" {
@@ -99,29 +94,5 @@ func getTemplatesDirectory() string {
 		log.Fatal(err)
 	}
 
-	return filepath.Join(currentDir, "..", "..", "templates")
-}
-
-func setupRouter(apiHandler *handlers.APIHandler) *chi.Mux {
-	router := chi.NewRouter()
-
-	staticPath := filepath.Join(getTemplatesDirectory(), "static")
-	staticURLPattern := "/static/*"
-
-	// Set up middleware
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"*"}, // Add your allowed origins here
-	}))
-
-	router.Get(staticURLPattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))).ServeHTTP(w, r)
-	}))
-
-	router.Post("/api/v1/repository", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/repository/{name?}", apiHandler.HandleGetBackupRepos)
-	router.Get("/", apiHandler.HandleIndex)
-
-	return router
+	return filepath.Join(currentDir, "..", "templates")
 }

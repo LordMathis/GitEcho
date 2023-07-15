@@ -14,7 +14,7 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
-	"github.com/LordMathis/GitEcho/pkg/handlers"
+	"github.com/LordMathis/GitEcho/pkg/server"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,10 +41,10 @@ func TestIntegration(t *testing.T) {
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
+	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
 
 	go func() {
-		err := http.ListenAndServe(":8080", setupRouter(apiHandler))
+		err := http.ListenAndServe(":8080", server.SetupRouter(apiHandler))
 		if err != nil {
 			log.Fatalf("Failed to start the server: %v", err)
 		}

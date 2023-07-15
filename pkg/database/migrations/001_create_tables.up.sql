@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS backup_repo (
 
 -- Create the backup_repo_storage table
 CREATE TABLE IF NOT EXISTS backup_repo_storage (
-  backup_repo_name TEXT REFERENCES backup_repo(name),
-  storage_name TEXT REFERENCES storage(name),
+  backup_repo_name TEXT REFERENCES backup_repo(name) ON DELETE CASCADE,
+  storage_name TEXT REFERENCES storage(name) ON DELETE CASCADE,
   PRIMARY KEY (backup_repo_name, storage_name)
 );

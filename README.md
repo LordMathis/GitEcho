@@ -2,7 +2,10 @@
 
 ![Go Tests](https://github.com/LordMathis/GitEcho/actions/workflows/go.yml/badge.svg)
 
-**Work in Progress**
+:warning: **Work in Progress**
+
+:warning: **Expect Breaking Changes**
+
 
 GitEcho is a backup tool for git repositories.
 
@@ -21,7 +24,7 @@ Configure GitEcho via environment variables
 GitEcho supports postgres and sqlite databases.
 
 ```env
-DB_TYPE=sqlite  # "sqlite" or "postgres"
+DB_TYPE=sqlite3  # "sqlite3" or "postgres"
 ```
 
 1. Sqlite settings

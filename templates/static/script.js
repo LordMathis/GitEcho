@@ -1,5 +1,5 @@
 // Retrieve backup repositories and populate the list
-fetch('/api/v1/backupRepos')
+fetch('/api/v1/repository')
   .then(response => response.json())
   .then(data => {
     const backupRepoList = document.getElementById('backup-repo-list');
@@ -110,7 +110,7 @@ createBackupBtn.addEventListener('click', (event) => {
 
   // Send the data to the API endpoint using fetch or your preferred AJAX method
   // Replace "/api/v1/backupRepos" with your actual API endpoint
-  fetch('/api/v1/backupRepos', {
+  fetch('/api/v1/repository', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

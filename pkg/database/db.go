@@ -41,7 +41,7 @@ func ConnectDB() (*Database, error) {
 			return nil, err
 		}
 
-	case "sqlite":
+	case "sqlite3":
 		// SQLite connection string
 		dbPath := os.Getenv("DB_PATH")
 

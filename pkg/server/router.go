@@ -25,7 +25,8 @@ func SetupRouter(apiHandler *APIHandler) *chi.Mux {
 	}))
 
 	router.Post("/api/v1/repository", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/repository/{name?}", apiHandler.HandleGetBackupRepos)
+	router.Get("/api/v1/repository/{name}", apiHandler.HandleGetBackupRepoByName)
+	router.Get("/api/v1/repository", apiHandler.HandleGetBackupRepos)
 	router.Delete("/api/v1/repository/{name}", apiHandler.HandleDelete)
 	router.Get("/", apiHandler.HandleIndex)
 

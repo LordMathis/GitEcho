@@ -44,29 +44,29 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
 }
 
-func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
-
+func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	if name != "" {
-		// Handle request for a specific backup repo
-		backupRepo, err := a.BackupRepoNameGetter.GetBackupRepoByName(name)
-		if err != nil {
-			// Handle error
-			http.Error(w, "Failed to retrieve backup repository", http.StatusInternalServerError)
-			return
-		}
 
-		// Convert backup repo to JSON and send response
-		response, err := json.Marshal(backupRepo)
-		if err != nil {
-			http.Error(w, "Failed to serialize backup repositories", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(response)
+	// Handle request for a specific backup repo
+	backupRepo, err := a.BackupRepoNameGetter.GetBackupRepoByName(name)
+	if err != nil {
+		// Handle error
+		http.Error(w, "Failed to retrieve backup repository", http.StatusInternalServerError)
 		return
 	}
+
+	// Convert backup repo to JSON and send response
+	response, err := json.Marshal(backupRepo)
+	if err != nil {
+		http.Error(w, "Failed to serialize backup repositories", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
+}
+
+func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve all backup repos from the database
 	backupRepos, err := a.BackupReposGetter.GetAllBackupRepos()

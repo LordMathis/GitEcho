@@ -105,6 +105,11 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 		return nil, err
 	}
 
+	// If there are no backup repos, return an empty slice
+	if len(parsedRepos) == 0 {
+		return []*backuprepo.BackupRepo{}, nil
+	}
+
 	var backupRepos []*backuprepo.BackupRepo
 	for _, parsedRepo := range parsedRepos {
 		// Prepare the SELECT statement to fetch the storages for each backup repo

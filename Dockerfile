@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o gitecho ./cmd/server
+RUN go build -o gitecho ./cmd
 
 # Use a minimal Alpine-based image as the production image
 FROM alpine:latest

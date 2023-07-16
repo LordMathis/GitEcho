@@ -1,41 +1,13 @@
-package handlers
+package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
-	"github.com/LordMathis/GitEcho/pkg/database"
-	"github.com/LordMathis/GitEcho/pkg/storage"
+	"github.com/go-chi/chi/v5"
 )
-
-type APIHandler struct {
-	Dispatcher          *backup.BackupDispatcher
-	Db                  *database.Database
-	RepositoryAdder     backup.RepositoryAdder
-	BackupReposGetter   database.BackupReposGetter
-	BackupRepoInserter  database.BackupRepoInserter
-	BackupRepoProcessor backuprepo.BackupRepoProcessor
-	TemplatesDir        string
-}
-
-func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
-	return &APIHandler{
-		Dispatcher:         dispatcher,
-		Db:                 db,
-		BackupReposGetter:  db,
-		BackupRepoInserter: db,
-		RepositoryAdder:    dispatcher,
-		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
-			StorageCreator: &storage.StorageCreatorImpl{},
-		},
-		TemplatesDir: templatesDir,
-	}
-}
 
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -72,7 +44,30 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
 }
 
+func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+
+	// Handle request for a specific backup repo
+	backupRepo, err := a.BackupRepoNameGetter.GetBackupRepoByName(name)
+	if err != nil {
+		// Handle error
+		http.Error(w, "Failed to retrieve backup repository", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert backup repo to JSON and send response
+	response, err := json.Marshal(backupRepo)
+	if err != nil {
+		http.Error(w, "Failed to serialize backup repositories", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
+}
+
 func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
+
 	// Retrieve all backup repos from the database
 	backupRepos, err := a.BackupReposGetter.GetAllBackupRepos()
 	if err != nil {
@@ -96,18 +91,32 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 	w.Write(backupReposJSON)
 }
 
-func (a *APIHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
+func (a *APIHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	// Get the repository name from the URL/query parameters
+	name := chi.URLParam(r, "name")
+	// Alternatively, if using query parameters: name := r.URL.Query().Get("name")
 
-	templatePah := filepath.Join(a.TemplatesDir, "index.html")
-	tmpl, err := template.ParseFiles(templatePah)
+	// Delete the backup repository from the database
+	err := a.Db.DeleteBackupRepo(name)
 	if err != nil {
-		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		// Handle the error (e.g., return appropriate HTTP response)
+		http.Error(w, "Failed to delete backup repository", http.StatusInternalServerError)
 		return
 	}
 
-	err = tmpl.Execute(w, nil)
+	// Delete the backup repository from the dispatcher
+	a.Dispatcher.DeleteRepository(name)
+
+	response := map[string]string{
+		"message": "Backup repository deleted successfully",
+	}
+	jsonResponse, err := json.Marshal(response)
 	if err != nil {
-		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResponse)
 }

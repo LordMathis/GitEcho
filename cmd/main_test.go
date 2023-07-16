@@ -14,7 +14,7 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
-	"github.com/LordMathis/GitEcho/pkg/handlers"
+	"github.com/LordMathis/GitEcho/pkg/server"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,10 +41,10 @@ func TestIntegration(t *testing.T) {
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := handlers.NewAPIHandler(dispatcher, db, templatesDir)
+	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
 
 	go func() {
-		err := http.ListenAndServe(":8080", setupRouter(apiHandler))
+		err := http.ListenAndServe(":8080", server.SetupRouter(apiHandler))
 		if err != nil {
 			log.Fatalf("Failed to start the server: %v", err)
 		}
@@ -53,8 +53,8 @@ func TestIntegration(t *testing.T) {
 	s3Storage := &storage.S3Storage{
 		Endpoint:   "http://127.0.0.1:9000",
 		Region:     "",
-		AccessKey:  "gitechoaccesskey",
-		SecretKey:  "gitechosecretkey",
+		AccessKey:  "gitecho",
+		SecretKey:  "gitechokey",
 		BucketName: "gitecho",
 	}
 
@@ -76,8 +76,8 @@ func TestIntegration(t *testing.T) {
 				"type":        "s3",
 				"endpoint":    "http://127.0.0.1:9000",
 				"region":      "",
-				"access_key":  "gitechoaccesskey",
-				"secret_key":  "gitechosecretkey",
+				"access_key":  "gitecho",
+				"secret_key":  "gitechokey",
 				"bucket_name": "gitecho",
 			},
 		},
@@ -112,6 +112,7 @@ func TestIntegration(t *testing.T) {
 
 func setupTestEnvVars(t *testing.T) {
 	encryption.SetEncryptionKey([]byte("12345678901234567890123456789012"))
+	os.Setenv("DB_TYPE", "postgres")
 	os.Setenv("DB_HOST", "localhost")
 	os.Setenv("DB_PORT", "5432")
 	os.Setenv("DB_USER", "gitecho")
@@ -122,7 +123,7 @@ func setupTestEnvVars(t *testing.T) {
 
 func createBackupRepo(t *testing.T, jsonData []byte) error {
 	// Perform the HTTP request to create the backup repository
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/backupRepos", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/repository", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}

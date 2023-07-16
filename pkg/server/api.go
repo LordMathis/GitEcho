@@ -107,6 +107,16 @@ func (a *APIHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	// Delete the backup repository from the dispatcher
 	a.Dispatcher.DeleteRepository(name)
 
-	// Return a success response
+	response := map[string]string{
+		"message": "Backup repository deleted successfully",
+	}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResponse)
 }

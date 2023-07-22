@@ -12,6 +12,7 @@ import (
 type APIHandler struct {
 	Dispatcher           *backup.BackupDispatcher
 	Db                   *database.Database
+	StorageManager       *storage.StorageManager
 	RepositoryAdder      backup.RepositoryAdder
 	BackupRepoNameGetter database.BackupRepoNameGetter
 	BackupReposGetter    database.BackupReposGetter
@@ -29,10 +30,8 @@ func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, t
 		BackupReposGetter:    db,
 		BackupRepoInserter:   db,
 		RepositoryAdder:      dispatcher,
-		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
-			StorageCreator: &storage.StorageCreatorImpl{},
-		},
-		TemplatesDir: templatesDir,
-		StaticDir:    filepath.Join(templatesDir, "static"),
+		BackupRepoProcessor:  &backuprepo.BackupRepoProcessorImpl{},
+		TemplatesDir:         templatesDir,
+		StaticDir:            filepath.Join(templatesDir, "static"),
 	}
 }

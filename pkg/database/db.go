@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -61,11 +60,8 @@ func ConnectDB() (*Database, error) {
 	}
 
 	return &Database{
-		DB: db,
-		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{
-			StorageCreator: &storage.StorageCreatorImpl{},
-		},
-		StoragesInserter: &StoragesInserterImpl{},
+		DB:                  db,
+		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{},
 	}, nil
 }
 

@@ -63,12 +63,15 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func NewS3StorageFromJson(storageData json.RawMessage) (*S3Storage, error) {
+func NewS3StorageFromBase(baseStorage BaseStorage) (*S3Storage, error) {
+
 	var s3Storage S3Storage
-	err := json.Unmarshal(storageData, &s3Storage)
+	err := json.Unmarshal([]byte(baseStorage.Data), &s3Storage)
 	if err != nil {
 		return nil, err
 	}
+
+	s3Storage.Name = baseStorage.Name
 
 	err = s3Storage.InitializeS3Storage()
 	if err != nil {
@@ -142,6 +145,14 @@ func (s *S3Storage) DecryptKeys() error {
 	s.SecretKey = string(decryptedSecretKey)
 
 	return nil
+}
+
+func (s *S3Storage) GetName() string {
+	return s.Name
+}
+
+func (s *S3Storage) GetType() StorageType {
+	return S3StorageType
 }
 
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.

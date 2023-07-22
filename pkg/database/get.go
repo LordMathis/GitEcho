@@ -1,8 +1,6 @@
 package database
 
 import (
-	"encoding/json"
-
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
@@ -28,8 +26,8 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	defer stmtBackupRepo.Close()
 
 	// Execute the SELECT statement to fetch the backup repo
-	var parsedRepo backuprepo.ParsedJSONRepo
-	err = stmtBackupRepo.Get(&parsedRepo, map[string]interface{}{
+	var backup_repo backuprepo.BackupRepo
+	err = stmtBackupRepo.Get(&backup_repo, map[string]interface{}{
 		"name": name,
 	})
 	if err != nil {
@@ -38,9 +36,9 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 
 	// Prepare the SELECT statement to fetch the storages
 	stmtStorages, err := db.DB.Preparex(`
-		SELECT s.name, s.type, s.data
-		FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name
-		WHERE b.backup_repo_name = $1
+		SELECT storage_name
+		FROM backup_repo_storage
+		WHERE backup_repo_name = $1
 	`)
 	if err != nil {
 		return nil, err
@@ -48,42 +46,21 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	defer stmtStorages.Close()
 
 	// Execute the SELECT statement to fetch the storages
-	var storageData []storage.BaseStorage
-	err = stmtStorages.Select(&storageData, parsedRepo.Name)
+	var storages []string
+	err = stmtStorages.Select(&storages, backup_repo.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, stor := range storageData {
-
-		var dataMap map[string]interface{}
-		err = json.Unmarshal([]byte(stor.Data), &dataMap)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add the additional attribute to the data map
-		dataMap["type"] = stor.Type // Add your desired value here
-
-		// Encode the modified data map back to JSON
-		updatedDataJSON, err := json.Marshal(dataMap)
-		if err != nil {
-			return nil, err
-		}
-
-		if parsedRepo.Storages == nil {
-			parsedRepo.Storages = make(map[string]json.RawMessage)
-		}
-		parsedRepo.Storages[stor.Name] = updatedDataJSON
-	}
+	backup_repo.StorageNames = storages
 
 	// Process the backup repo and storages
-	backupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(&parsedRepo)
+	processedRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(&backup_repo)
 	if err != nil {
 		return nil, err
 	}
 
-	return backupRepo, nil
+	return processedRepo, nil
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
@@ -99,24 +76,20 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	defer stmtBackupRepos.Close()
 
 	// Execute the SELECT statement to fetch all backup repos
-	var parsedRepos []*backuprepo.ParsedJSONRepo
-	err = stmtBackupRepos.Select(&parsedRepos)
+	var backupRepos []*backuprepo.BackupRepo
+	err = stmtBackupRepos.Select(&backupRepos)
 	if err != nil {
 		return nil, err
 	}
 
-	// If there are no backup repos, return an empty slice
-	if len(parsedRepos) == 0 {
-		return []*backuprepo.BackupRepo{}, nil
-	}
+	retBackupRepos := []*backuprepo.BackupRepo{}
 
-	var backupRepos []*backuprepo.BackupRepo
-	for _, parsedRepo := range parsedRepos {
+	for _, backupRepo := range backupRepos {
 		// Prepare the SELECT statement to fetch the storages for each backup repo
 		stmtStorages, err := db.DB.Preparex(`
-			SELECT s.name, s.type, s.data
-			FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name
-			WHERE b.backup_repo_name = $1
+			SELECT storage_name
+			FROM backup_repo_storage
+			WHERE backup_repo_name = $1
 		`)
 		if err != nil {
 			return nil, err
@@ -124,42 +97,84 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 		defer stmtStorages.Close()
 
 		// Execute the SELECT statement to fetch the storages
-		var storageData []storage.BaseStorage
-		err = stmtStorages.Select(&storageData, parsedRepo.Name)
+		var storages []string
+		err = stmtStorages.Select(&storages, backupRepo.Name)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, storage := range storageData {
-			var dataMap map[string]interface{}
-			err = json.Unmarshal([]byte(storage.Data), &dataMap)
-			if err != nil {
-				return nil, err
-			}
-
-			// Add the additional attribute to the data map
-			dataMap["type"] = storage.Type // Add your desired value here
-
-			// Encode the modified data map back to JSON
-			updatedDataJSON, err := json.Marshal(dataMap)
-			if err != nil {
-				return nil, err
-			}
-
-			if parsedRepo.Storages == nil {
-				parsedRepo.Storages = make(map[string]json.RawMessage)
-			}
-			parsedRepo.Storages[storage.Name] = updatedDataJSON
-		}
+		backupRepo.StorageNames = storages
 
 		// Process each backup repo and storages
-		backupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(parsedRepo)
+		processedBackupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(backupRepo)
 		if err != nil {
 			return nil, err
 		}
 
-		backupRepos = append(backupRepos, backupRepo)
+		retBackupRepos = append(retBackupRepos, processedBackupRepo)
+
 	}
 
-	return backupRepos, nil
+	return retBackupRepos, nil
+}
+
+func (db *Database) GetStorageByName(name string) (storage.Storage, error) {
+	// Prepare the SELECT statement to fetch the storage
+	stmtStorage, err := db.DB.PrepareNamed(`
+		SELECT name, type, data
+		FROM storage
+		WHERE name = :name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmtStorage.Close()
+
+	// Execute the SELECT statement to fetch the storage
+	var baseStorage storage.BaseStorage
+	err = stmtStorage.Get(&baseStorage, map[string]interface{}{
+		"name": name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the appropriate storage instance based on the base storage type
+	storageInstance, err := storage.CreateStorage(baseStorage)
+	if err != nil {
+		return nil, err
+	}
+
+	return storageInstance, nil
+}
+
+func (db *Database) GetAllStorages() ([]storage.Storage, error) {
+	// Prepare the SELECT statement to fetch all storages
+	stmtStorages, err := db.DB.Preparex(`
+		SELECT name, type, data
+		FROM storage
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmtStorages.Close()
+
+	// Execute the SELECT statement to fetch all storages
+	var baseStorages []storage.BaseStorage
+	err = stmtStorages.Select(&baseStorages)
+	if err != nil {
+		return nil, err
+	}
+
+	var storages []storage.Storage
+	for _, baseStorage := range baseStorages {
+		// Create the appropriate storage instance based on the base storage type
+		storageInstance, err := storage.CreateStorage(baseStorage)
+		if err != nil {
+			return nil, err
+		}
+		storages = append(storages, storageInstance)
+	}
+
+	return storages, nil
 }

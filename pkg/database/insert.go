@@ -5,7 +5,6 @@ import (
 
 	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/storage"
-	"github.com/jmoiron/sqlx"
 )
 
 type BackupRepoInserter interface {
@@ -13,7 +12,7 @@ type BackupRepoInserter interface {
 }
 
 type StoragesInserter interface {
-	InsertOrUpdateStorages(tx *sqlx.Tx, backupRepoName string, storages map[string]storage.Storage) error
+	InsertOrUpdateStorage(storage *storage.Storage) error
 }
 
 type StoragesInserterImpl struct{}
@@ -43,6 +42,16 @@ func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) 
 	}
 	defer stmtBackupRepo.Close()
 
+	stmtBackupRepoStorage, err := tx.Prepare(`
+		INSERT INTO backup_repo_storage (backup_repo_name, storage_name)
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmtBackupRepoStorage.Close()
+
 	// Execute the INSERT statement for backup_repo
 	_, err = stmtBackupRepo.Exec(backupRepo)
 	if err != nil {
@@ -50,10 +59,12 @@ func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) 
 		return err
 	}
 
-	err = db.StoragesInserter.InsertOrUpdateStorages(tx, backupRepo.Name, backupRepo.Storages)
-	if err != nil {
-		_ = tx.Rollback()
-		return err
+	for _, storageName := range backupRepo.StorageNames {
+		_, err = stmtBackupRepoStorage.Exec(backupRepo.Name, storageName)
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
 	}
 
 	// Commit the transaction
@@ -65,8 +76,8 @@ func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) 
 	return nil
 }
 
-func (s *StoragesInserterImpl) InsertOrUpdateStorages(tx *sqlx.Tx, backupRepoName string, storages map[string]storage.Storage) error {
-	stmtStorage, err := tx.PrepareNamed(`
+func (db *Database) InsertOrUpdateStorage(stor storage.Storage) error {
+	stmtStorage, err := db.PrepareNamed(`
 		INSERT INTO storage (name, type, data)
 		VALUES (:name, :type, :data)
 		ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type, data = EXCLUDED.data
@@ -76,42 +87,25 @@ func (s *StoragesInserterImpl) InsertOrUpdateStorages(tx *sqlx.Tx, backupRepoNam
 	}
 	defer stmtStorage.Close()
 
-	stmtBackupRepoStorage, err := tx.Prepare(`
-		INSERT INTO backup_repo_storage (backup_repo_name, storage_name)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`)
-	if err != nil {
-		return err
-	}
-	defer stmtBackupRepoStorage.Close()
+	switch s := stor.(type) {
+	case *storage.S3Storage:
 
-	for name, stor := range storages {
-
-		switch s := stor.(type) {
-		case *storage.S3Storage:
-
-			dataJSON, err := s.S3StorageMarshaler.MarshalS3Storage(s)
-			if err != nil {
-				return err
-			}
-
-			_, err = stmtStorage.Exec(&storage.BaseStorage{
-				Name: name,
-				Type: "s3",
-				Data: string(dataJSON),
-			})
-			if err != nil {
-				return err
-			}
-
-			_, err = stmtBackupRepoStorage.Exec(backupRepoName, name)
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported storage type: %T", stor)
+		dataJSON, err := s.S3StorageMarshaler.MarshalS3Storage(s)
+		if err != nil {
+			return err
 		}
+
+		_, err = stmtStorage.Exec(&storage.BaseStorage{
+			Name: s.Name,
+			Type: "s3",
+			Data: string(dataJSON),
+		})
+		if err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("unsupported storage type: %T", stor)
 	}
 
 	return nil

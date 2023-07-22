@@ -1,7 +1,6 @@
 package backuprepo
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -14,12 +13,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string                     `json:"name" db:"name"`
-	SrcRepo      *git.Repository            `json:"-"`
-	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
-	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
-	Storages     map[string]storage.Storage `json:"storage"`
-	LocalPath    string                     `json:"-" db:"local_path"`
+	Name         string             `json:"name" db:"name"`
+	SrcRepo      *git.Repository    `json:"-"`
+	RemoteURL    string             `json:"remote_url" db:"remote_url"`
+	PullInterval int                `json:"pull_interval" db:"pull_interval"`
+	Storages     []*storage.Storage `json:"-"`
+	StorageNames []string           `json:"storage"`
+	LocalPath    string             `json:"-" db:"local_path"`
 	Credentials  `json:"credentials"`
 }
 
@@ -29,21 +29,11 @@ type Credentials struct {
 	GitKeyPath  string `json:"key_path" db:"git_key_path"`
 }
 
-type ParsedJSONRepo struct {
-	Name         string                     `json:"name" db:"name"`
-	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
-	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
-	LocalPath    string                     `json:"-" db:"local_path"`
-	Storages     map[string]json.RawMessage `json:"storage"`
-	Credentials  `json:"credentials"`
-}
-
 type BackupRepoProcessor interface {
-	ProcessBackupRepo(parsedJSONRepo *ParsedJSONRepo) (*BackupRepo, error)
+	ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error)
 }
 
 type BackupRepoProcessorImpl struct {
-	StorageCreator storage.StorageCreator
 }
 
 func (b *BackupRepo) InitializeRepo() error {
@@ -90,26 +80,7 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	return nil
 }
 
-func (p *BackupRepoProcessorImpl) ProcessBackupRepo(parsedJSONRepo *ParsedJSONRepo) (*BackupRepo, error) {
-
-	backupRepo := &BackupRepo{
-		Name:         parsedJSONRepo.Name,
-		RemoteURL:    parsedJSONRepo.RemoteURL,
-		PullInterval: parsedJSONRepo.PullInterval,
-		LocalPath:    parsedJSONRepo.LocalPath,
-		Storages:     make(map[string]storage.Storage),
-		Credentials:  parsedJSONRepo.Credentials,
-	}
-
-	for name, storage := range parsedJSONRepo.Storages {
-
-		storageInstance, err := p.StorageCreator.CreateStorage(storage)
-		if err != nil {
-			return nil, err
-		}
-
-		backupRepo.Storages[name] = storageInstance
-	}
+func (p *BackupRepoProcessorImpl) ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error) {
 
 	password := backupRepo.GitPassword
 	if password != "" {

@@ -24,11 +24,25 @@ func SetupRouter(apiHandler *APIHandler) *chi.Mux {
 		http.StripPrefix("/static/", http.FileServer(http.Dir(apiHandler.StaticDir))).ServeHTTP(w, r)
 	}))
 
-	router.Post("/api/v1/repository", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/repository/{name}", apiHandler.HandleGetBackupRepoByName)
-	router.Get("/api/v1/repository", apiHandler.HandleGetBackupRepos)
-	router.Delete("/api/v1/repository/{name}", apiHandler.HandleDelete)
+	apiRouter := chi.NewRouter()
+	apiRouter.Route("/", func(r chi.Router) {
+		r.Route("/repository", func(r chi.Router) {
+			r.Post("/", apiHandler.HandleCreateBackupRepo)
+			r.Get("/", apiHandler.HandleGetBackupRepos)
+			r.Get("/{name}", apiHandler.HandleGetBackupRepoByName)
+			r.Delete("/{name}", apiHandler.HandleDeleteBackupRepo)
+		})
+
+		r.Route("/storage", func(r chi.Router) {
+			r.Post("/", apiHandler.HandleCreateStorage)
+			r.Get("/", apiHandler.HandleGetStorages)
+			r.Get("/{name}", apiHandler.HandleGetStorageByName)
+			r.Delete("/{name}", apiHandler.HandleDeleteStorage)
+		})
+	})
+
 	router.Get("/", apiHandler.HandleIndex)
+	router.Mount("/api/v1", apiRouter)
 
 	return router
 }

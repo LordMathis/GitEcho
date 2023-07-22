@@ -15,17 +15,17 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var parsedJSONRepo backuprepo.ParsedJSONRepo
-	err := json.NewDecoder(r.Body).Decode(&parsedJSONRepo)
+	var backupRepo *backuprepo.BackupRepo
+	err := json.NewDecoder(r.Body).Decode(&backupRepo)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + parsedJSONRepo.Name
-	parsedJSONRepo.LocalPath = localPath
+	localPath := os.Getenv("GITECHO_DATA_PATH") + "/" + backupRepo.Name
+	backupRepo.LocalPath = localPath
 
-	backupRepo, err := a.BackupRepoProcessor.ProcessBackupRepo(&parsedJSONRepo)
+	err = backupRepo.InitializeRepo()
 	if err != nil {
 		http.Error(w, "Failed to create backup repository", http.StatusInternalServerError)
 		return
@@ -33,7 +33,7 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 
 	err = a.BackupRepoInserter.InsertOrUpdateBackupRepo(backupRepo)
 	if err != nil {
-		http.Error(w, "Failed to create backup repository configuration", http.StatusInternalServerError)
+		http.Error(w, "Failed to store backup repository", http.StatusInternalServerError)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 	w.Write(backupReposJSON)
 }
 
-func (a *APIHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
 	name := chi.URLParam(r, "name")
 	// Alternatively, if using query parameters: name := r.URL.Query().Get("name")

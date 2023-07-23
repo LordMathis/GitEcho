@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/server"
+	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 func main() {
@@ -36,16 +38,22 @@ func main() {
 	}
 	encryption.SetEncryptionKey(key)
 
-	db := initializeDatabase()
+	db, err := database.InitializeDatabase()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	defer db.CloseDB()
 
-	dispatcher := initializeBackupDispatcher(db)
-	dispatcher.Start()
+	storageManager := initializeStorageManager(db)
+	backupRepoManager := initializeBackupRepoManager(db, storageManager)
+	scheduler := backup.NewBackupScheduler(backupRepoManager)
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
+	apiHandler := server.NewAPIHandler(db, backupRepoManager, storageManager, scheduler, templatesDir)
 	router := server.SetupRouter(apiHandler)
+
+	scheduler.Start()
 
 	port := os.Getenv("GITECHO_PORT")
 	if port == "" {
@@ -59,35 +67,6 @@ func main() {
 	}
 }
 
-func initializeDatabase() *database.Database {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = db.MigrateDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return db
-}
-
-func initializeBackupDispatcher(db *database.Database) *backup.BackupDispatcher {
-	dispatcher := backup.NewBackupDispatcher()
-
-	backupRepos, err := db.GetAllBackupRepos()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, backupRepo := range backupRepos {
-		dispatcher.AddRepository(backupRepo)
-	}
-
-	return dispatcher
-}
-
 func getTemplatesDirectory() string {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -95,4 +74,45 @@ func getTemplatesDirectory() string {
 	}
 
 	return filepath.Join(currentDir, "..", "templates")
+}
+
+func initializeStorageManager(db *database.Database) *storage.StorageManager {
+	storageManager := storage.NewStorageManager()
+
+	stoarages, err := db.GetAllStorages()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for _, storage := range stoarages {
+		storageManager.AddStorage(storage)
+	}
+
+	return storageManager
+}
+
+func initializeBackupRepoManager(db *database.Database, sm *storage.StorageManager) *backuprepo.BackupRepoManager {
+	backupRepoManager := backuprepo.NewBackupRepoManager()
+
+	repos, err := db.GetAllBackupRepos()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for _, repo := range repos {
+		backupRepoManager.AddBackupRepo(repo)
+		storageNames, err := db.GetBackupRepoStorageNames(repo.Name)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		for _, storageName := range storageNames {
+			stor := sm.GetStorage(storageName)
+			if stor != nil {
+				backupRepoManager.AddStorage(repo.Name, stor)
+			}
+		}
+	}
+
+	return backupRepoManager
 }

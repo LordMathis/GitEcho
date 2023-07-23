@@ -5,14 +5,6 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
-type BackupRepoNameGetter interface {
-	GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error)
-}
-
-type BackupReposGetter interface {
-	GetAllBackupRepos() ([]*backuprepo.BackupRepo, error)
-}
-
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement to fetch the backup repo
 	stmtBackupRepo, err := db.DB.PrepareNamed(`
@@ -138,10 +130,10 @@ func (db *Database) GetAllStorages() ([]storage.Storage, error) {
 	return storages, nil
 }
 
-func (db *Database) GetBackupRepoStorages(repoName string) ([]storage.Storage, error) {
+func (db *Database) GetBackupRepoStorageNames(repoName string) ([]string, error) {
 	// Prepare the SELECT statement to fetch the storages associated with the backup repo
 	stmtStorages, err := db.DB.Preparex(`
-		SELECT s.name, s.type, s.data
+		SELECT s.name
 		FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name
 		WHERE b.backup_repo_name = $1
 	`)
@@ -151,21 +143,11 @@ func (db *Database) GetBackupRepoStorages(repoName string) ([]storage.Storage, e
 	defer stmtStorages.Close()
 
 	// Execute the SELECT statement to fetch the storages
-	var baseStorages []*storage.BaseStorage
-	err = stmtStorages.Select(&baseStorages, repoName)
+	var storageNames []string
+	err = stmtStorages.Select(&storageNames, repoName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert BaseStorage to concrete storage types using CreateStorage function
-	var storages []storage.Storage
-	for _, baseStorage := range baseStorages {
-		storageInstance, err := storage.CreateStorage(*baseStorage)
-		if err != nil {
-			return nil, err
-		}
-		storages = append(storages, storageInstance)
-	}
-
-	return storages, nil
+	return storageNames, nil
 }

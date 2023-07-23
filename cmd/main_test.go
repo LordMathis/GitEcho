@@ -18,6 +18,10 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/server"
 	"github.com/LordMathis/GitEcho/pkg/storage"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,6 +46,9 @@ var testStorage *storage.S3Storage = &storage.S3Storage{
 }
 
 func TestIntegration(t *testing.T) {
+	if !isS3StorageAvailable() {
+		t.Skip("Minio is not available. Skipping integration test.")
+	}
 
 	setupTestEnvVars(t)
 
@@ -160,6 +167,29 @@ func waitServerReady(url string, timeout time.Duration) error {
 		// Wait for a short duration before retrying
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func isS3StorageAvailable() bool {
+	// Create a new AWS session
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-1"), // Replace with the appropriate AWS region
+		Endpoint:    aws.String(testStorage.Endpoint),
+		Credentials: credentials.NewStaticCredentials(testStorage.AccessKey, testStorage.SecretKey, ""),
+	})
+	if err != nil {
+		return false
+	}
+
+	// Create an S3 client
+	svc := s3.New(sess)
+
+	// Perform a simple S3 operation to check if Minio is reachable
+	_, err = svc.ListBuckets(nil)
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func cleanup() {

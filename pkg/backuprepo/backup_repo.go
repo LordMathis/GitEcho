@@ -13,13 +13,12 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string             `json:"name" db:"name"`
-	SrcRepo      *git.Repository    `json:"-"`
-	RemoteURL    string             `json:"remote_url" db:"remote_url"`
-	PullInterval int                `json:"pull_interval" db:"pull_interval"`
-	Storages     []*storage.Storage `json:"-"`
-	StorageNames []string           `json:"storage"`
-	LocalPath    string             `json:"-" db:"local_path"`
+	Name         string                     `json:"name" db:"name"`
+	SrcRepo      *git.Repository            `json:"-"`
+	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
+	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
+	NewStorages  map[string]storage.Storage `json:"-"`
+	LocalPath    string                     `json:"-" db:"local_path"`
 	Credentials  `json:"credentials"`
 }
 
@@ -29,11 +28,12 @@ type Credentials struct {
 	GitKeyPath  string `json:"key_path" db:"git_key_path"`
 }
 
-type BackupRepoProcessor interface {
-	ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error)
+func (b *BackupRepo) AddStorage(storage storage.Storage) {
+	b.NewStorages[storage.GetName()] = storage
 }
 
-type BackupRepoProcessorImpl struct {
+func (b *BackupRepo) RemoveStorage(storage_name string) {
+	delete(b.NewStorages, storage_name)
 }
 
 func (b *BackupRepo) InitializeRepo() error {
@@ -59,6 +59,25 @@ func (b *BackupRepo) InitializeRepo() error {
 	return nil
 }
 
+func (b *BackupRepo) BackupAndUpload() error {
+	gitclient := gitutil.NewGitClient(b.Credentials.GitUsername, b.Credentials.GitPassword, b.Credentials.GitKeyPath)
+	err := gitclient.PullChanges(b.SrcRepo)
+	if err != nil {
+		return err
+	}
+
+	// Upload the local directory to S3
+	for _, stor := range b.NewStorages {
+
+		err := stor.UploadDirectory(b.LocalPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ValidateBackupRepo(backupRepo BackupRepo) error {
 	// Define regular expression patterns for validation
 	namePattern := `^[a-zA-Z0-9_-]+$`
@@ -80,7 +99,7 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	return nil
 }
 
-func (p *BackupRepoProcessorImpl) ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error) {
+func ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error) {
 
 	password := backupRepo.GitPassword
 	if password != "" {

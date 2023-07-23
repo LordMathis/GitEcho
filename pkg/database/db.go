@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -12,8 +11,6 @@ import (
 
 type Database struct {
 	*sqlx.DB
-	BackupRepoProcessor backuprepo.BackupRepoProcessor
-	StoragesInserter    StoragesInserter
 }
 
 func ConnectDB() (*Database, error) {
@@ -60,8 +57,7 @@ func ConnectDB() (*Database, error) {
 	}
 
 	return &Database{
-		DB:                  db,
-		BackupRepoProcessor: &backuprepo.BackupRepoProcessorImpl{},
+		DB: db,
 	}, nil
 }
 

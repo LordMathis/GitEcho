@@ -7,25 +7,10 @@ import (
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
-type BackupRepoInserter interface {
-	InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) error
-}
-
-type StoragesInserter interface {
-	InsertOrUpdateStorage(storage *storage.Storage) error
-}
-
-type StoragesInserterImpl struct{}
-
 func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) error {
-	// Start a database transaction
-	tx, err := db.Beginx()
-	if err != nil {
-		return err
-	}
 
 	// Prepare the INSERT statement for backup_repo
-	stmtBackupRepo, err := tx.PrepareNamed(`
+	stmtBackupRepo, err := db.PrepareNamed(`
 		INSERT INTO backup_repo (name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path)
 		VALUES (:name, :pull_interval, :local_path, :remote_url, :git_username, :git_password, :git_key_path)
 		ON CONFLICT (name) DO UPDATE SET
@@ -37,38 +22,12 @@ func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) 
 			git_key_path = EXCLUDED.git_key_path
 	`)
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	defer stmtBackupRepo.Close()
 
-	stmtBackupRepoStorage, err := tx.Prepare(`
-		INSERT INTO backup_repo_storage (backup_repo_name, storage_name)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`)
-	if err != nil {
-		return err
-	}
-	defer stmtBackupRepoStorage.Close()
-
 	// Execute the INSERT statement for backup_repo
 	_, err = stmtBackupRepo.Exec(backupRepo)
-	if err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-
-	for _, storageName := range backupRepo.StorageNames {
-		_, err = stmtBackupRepoStorage.Exec(backupRepo.Name, storageName)
-		if err != nil {
-			_ = tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -106,6 +65,27 @@ func (db *Database) InsertOrUpdateStorage(stor storage.Storage) error {
 
 	default:
 		return fmt.Errorf("unsupported storage type: %T", stor)
+	}
+
+	return nil
+}
+
+func (db *Database) InsertBackupRepoStorage(repoName, storageName string) error {
+	// Prepare the INSERT statement to associate the backup repo with the storage
+	stmtInsert, err := db.DB.Prepare(`
+		INSERT INTO backup_repo_storage (backup_repo_name, storage_name)
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmtInsert.Close()
+
+	// Execute the INSERT statement
+	_, err = stmtInsert.Exec(repoName, storageName)
+	if err != nil {
+		return err
 	}
 
 	return nil

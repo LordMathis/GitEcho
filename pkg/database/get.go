@@ -34,28 +34,8 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 		return nil, err
 	}
 
-	// Prepare the SELECT statement to fetch the storages
-	stmtStorages, err := db.DB.Preparex(`
-		SELECT storage_name
-		FROM backup_repo_storage
-		WHERE backup_repo_name = $1
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer stmtStorages.Close()
-
-	// Execute the SELECT statement to fetch the storages
-	var storages []string
-	err = stmtStorages.Select(&storages, backup_repo.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	backup_repo.StorageNames = storages
-
 	// Process the backup repo and storages
-	processedRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(&backup_repo)
+	processedRepo, err := backuprepo.ProcessBackupRepo(&backup_repo)
 	if err != nil {
 		return nil, err
 	}
@@ -85,34 +65,13 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	retBackupRepos := []*backuprepo.BackupRepo{}
 
 	for _, backupRepo := range backupRepos {
-		// Prepare the SELECT statement to fetch the storages for each backup repo
-		stmtStorages, err := db.DB.Preparex(`
-			SELECT storage_name
-			FROM backup_repo_storage
-			WHERE backup_repo_name = $1
-		`)
-		if err != nil {
-			return nil, err
-		}
-		defer stmtStorages.Close()
-
-		// Execute the SELECT statement to fetch the storages
-		var storages []string
-		err = stmtStorages.Select(&storages, backupRepo.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		backupRepo.StorageNames = storages
-
 		// Process each backup repo and storages
-		processedBackupRepo, err := db.BackupRepoProcessor.ProcessBackupRepo(backupRepo)
+		processedBackupRepo, err := backuprepo.ProcessBackupRepo(backupRepo)
 		if err != nil {
 			return nil, err
 		}
 
 		retBackupRepos = append(retBackupRepos, processedBackupRepo)
-
 	}
 
 	return retBackupRepos, nil
@@ -170,6 +129,38 @@ func (db *Database) GetAllStorages() ([]storage.Storage, error) {
 	for _, baseStorage := range baseStorages {
 		// Create the appropriate storage instance based on the base storage type
 		storageInstance, err := storage.CreateStorage(baseStorage)
+		if err != nil {
+			return nil, err
+		}
+		storages = append(storages, storageInstance)
+	}
+
+	return storages, nil
+}
+
+func (db *Database) GetBackupRepoStorages(repoName string) ([]storage.Storage, error) {
+	// Prepare the SELECT statement to fetch the storages associated with the backup repo
+	stmtStorages, err := db.DB.Preparex(`
+		SELECT s.name, s.type, s.data
+		FROM backup_repo_storage b JOIN storage s ON b.storage_name = s.name
+		WHERE b.backup_repo_name = $1
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmtStorages.Close()
+
+	// Execute the SELECT statement to fetch the storages
+	var baseStorages []*storage.BaseStorage
+	err = stmtStorages.Select(&baseStorages, repoName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert BaseStorage to concrete storage types using CreateStorage function
+	var storages []storage.Storage
+	for _, baseStorage := range baseStorages {
+		storageInstance, err := storage.CreateStorage(*baseStorage)
 		if err != nil {
 			return nil, err
 		}

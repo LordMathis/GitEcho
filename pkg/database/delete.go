@@ -57,3 +57,23 @@ func (db *Database) DeleteStorage(name string) error {
 
 	return nil
 }
+
+func (db *Database) DeleteBackupRepoStorage(repoName, storageName string) error {
+	// Prepare the DELETE statement to remove the association
+	stmtDelete, err := db.DB.Prepare(`
+		DELETE FROM backup_repo_storage
+		WHERE backup_repo_name = $1 AND storage_name = $2
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmtDelete.Close()
+
+	// Execute the DELETE statement
+	_, err = stmtDelete.Exec(repoName, storageName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -49,6 +50,7 @@ func TestIntegration(t *testing.T) {
 		log.Fatalln(err)
 	}
 	defer db.CloseDB()
+	defer cleanup()
 
 	storageManager := initializeStorageManager(db)
 	backupRepoManager := initializeBackupRepoManager(db, storageManager)
@@ -66,6 +68,9 @@ func TestIntegration(t *testing.T) {
 			log.Fatalf("Failed to start the server: %v", err)
 		}
 	}()
+
+	err = waitServerReady("http://127.0.0.1:8080/api/v1/repository", 100*time.Second)
+	assert.NoError(t, err)
 
 	s3storageData, err := json.Marshal(testStorage)
 	assert.NoError(t, err)
@@ -113,26 +118,63 @@ func TestIntegration(t *testing.T) {
 func setupTestEnvVars(t *testing.T) {
 	encryption.SetEncryptionKey([]byte("12345678901234567890123456789012"))
 	os.Setenv("DB_TYPE", "sqlite3")
-	os.Setenv("DB_PATH", "/test.db")
+	os.Setenv("DB_PATH", "./test.db")
 	os.Setenv("GITECHO_DATA_PATH", "/tmp")
 }
 
 func sendPostRequest(t *testing.T, url string, jsonData []byte) error {
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %v", err)
+		return err
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send HTTP request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to create backup repository, status code: %d", resp.StatusCode)
+		return fmt.Errorf("failed to create resource, status code: %d", resp.StatusCode)
 	}
 
 	return nil
+}
+
+func waitServerReady(url string, timeout time.Duration) error {
+	startTime := time.Now()
+
+	for {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			// Request succeeded, return the response
+			return nil
+		}
+
+		// Check if the timeout has been reached
+		if time.Since(startTime) >= timeout {
+			return fmt.Errorf("timeout reached while making GET request")
+		}
+
+		// Wait for a short duration before retrying
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func cleanup() {
+	err := os.Remove(os.Getenv("DB_PATH"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.RemoveAll(filepath.Join(os.Getenv("GITECHO_DATA_PATH"), "test-repo"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.RemoveAll(filepath.Join(os.Getenv("GITECHO_DATA_PATH"), "test-repo-restore"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

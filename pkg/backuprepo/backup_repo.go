@@ -17,7 +17,7 @@ type BackupRepo struct {
 	SrcRepo      *git.Repository            `json:"-"`
 	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
 	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
-	NewStorages  map[string]storage.Storage `json:"-"`
+	Storages     map[string]storage.Storage `json:"-"`
 	LocalPath    string                     `json:"-" db:"local_path"`
 	Credentials  `json:"credentials"`
 }
@@ -29,11 +29,11 @@ type Credentials struct {
 }
 
 func (b *BackupRepo) AddStorage(storage storage.Storage) {
-	b.NewStorages[storage.GetName()] = storage
+	b.Storages[storage.GetName()] = storage
 }
 
 func (b *BackupRepo) RemoveStorage(storage_name string) {
-	delete(b.NewStorages, storage_name)
+	delete(b.Storages, storage_name)
 }
 
 func (b *BackupRepo) InitializeRepo() error {
@@ -67,7 +67,7 @@ func (b *BackupRepo) BackupAndUpload() error {
 	}
 
 	// Upload the local directory to S3
-	for _, stor := range b.NewStorages {
+	for _, stor := range b.Storages {
 
 		err := stor.UploadDirectory(b.LocalPath)
 		if err != nil {
@@ -76,6 +76,24 @@ func (b *BackupRepo) BackupAndUpload() error {
 	}
 
 	return nil
+}
+
+func (b *BackupRepo) DecryptCredentials() error {
+
+	password := b.GitPassword
+	if password != "" {
+		decryptedPassword, err := encryption.Decrypt([]byte(password))
+		if err != nil {
+			return err
+		}
+		b.GitPassword = string(decryptedPassword)
+	}
+
+	return nil
+}
+
+func (b *BackupRepo) InitializeStorages() {
+	b.Storages = make(map[string]storage.Storage)
 }
 
 func ValidateBackupRepo(backupRepo BackupRepo) error {
@@ -97,20 +115,4 @@ func ValidateBackupRepo(backupRepo BackupRepo) error {
 	}
 
 	return nil
-}
-
-func ProcessBackupRepo(backupRepo *BackupRepo) (*BackupRepo, error) {
-
-	password := backupRepo.GitPassword
-	if password != "" {
-		decryptedPassword, err := encryption.Decrypt([]byte(password))
-		if err != nil {
-			return nil, err
-		}
-		backupRepo.GitPassword = string(decryptedPassword)
-	}
-
-	backupRepo.InitializeRepo()
-
-	return backupRepo, nil
 }

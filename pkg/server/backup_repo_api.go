@@ -32,6 +32,8 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	backupRepo.InitializeStorages()
+
 	err = a.db.InsertOrUpdateBackupRepo(backupRepo)
 	if err != nil {
 		http.Error(w, "Failed to store backup repository", http.StatusInternalServerError)
@@ -113,7 +115,7 @@ func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.
 	repo := a.backupRepoManager.GetBackupRepo(name)
 	var storages []storage.Storage
 
-	for _, stor := range repo.NewStorages {
+	for _, stor := range repo.Storages {
 		storages = append(storages, stor)
 	}
 

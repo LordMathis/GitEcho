@@ -27,12 +27,14 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 	}
 
 	// Process the backup repo and storages
-	processedRepo, err := backuprepo.ProcessBackupRepo(&backup_repo)
+	err = backup_repo.DecryptCredentials()
 	if err != nil {
 		return nil, err
 	}
 
-	return processedRepo, nil
+	backup_repo.InitializeStorages()
+
+	return &backup_repo, nil
 }
 
 // GetAllBackupRepoConfigs retrieves all stored BackupRepoConfig from the database.
@@ -58,12 +60,14 @@ func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 
 	for _, backupRepo := range backupRepos {
 		// Process each backup repo and storages
-		processedBackupRepo, err := backuprepo.ProcessBackupRepo(backupRepo)
+		err = backupRepo.DecryptCredentials()
 		if err != nil {
 			return nil, err
 		}
 
-		retBackupRepos = append(retBackupRepos, processedBackupRepo)
+		backupRepo.InitializeStorages()
+
+		retBackupRepos = append(retBackupRepos, backupRepo)
 	}
 
 	return retBackupRepos, nil

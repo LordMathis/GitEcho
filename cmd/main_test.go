@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
@@ -19,29 +20,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testBackupRepo *backuprepo.BackupRepo = &backuprepo.BackupRepo{
+	Name:         "test-repo",
+	RemoteURL:    "https://github.com/LordMathis/GitEcho",
+	PullInterval: 1,
+	Credentials: backuprepo.Credentials{
+		GitUsername: "",
+		GitPassword: "",
+		GitKeyPath:  "",
+	},
+}
+
+var testStorage *storage.S3Storage = &storage.S3Storage{
+	Name:       "test-storage",
+	Endpoint:   "http://127.0.0.1:9000",
+	Region:     "",
+	AccessKey:  "gitecho",
+	SecretKey:  "gitechokey",
+	BucketName: "gitecho",
+}
+
 func TestIntegration(t *testing.T) {
 
 	setupTestEnvVars(t)
 
-	db, err := database.ConnectDB()
+	db, err := database.InitializeDatabase()
 	if err != nil {
-		t.Skip("error connecting to database", err)
+		log.Fatalln(err)
 	}
-
-	err = db.MigrateDB()
-	if err != nil {
-		t.Skip("error migrating database", err)
-	}
-
 	defer db.CloseDB()
 
-	dispatcher := backup.NewBackupDispatcher()
-	assert.NoError(t, err)
-	dispatcher.Start()
+	storageManager := initializeStorageManager(db)
+	backupRepoManager := initializeBackupRepoManager(db, storageManager)
+	scheduler := backup.NewBackupScheduler(backupRepoManager)
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
+	apiHandler := server.NewAPIHandler(db, backupRepoManager, storageManager, scheduler, templatesDir)
+
+	scheduler.Start()
 
 	go func() {
 		err := http.ListenAndServe(":8080", server.SetupRouter(apiHandler))
@@ -50,47 +67,28 @@ func TestIntegration(t *testing.T) {
 		}
 	}()
 
-	s3Storage := &storage.S3Storage{
-		Endpoint:   "http://127.0.0.1:9000",
-		Region:     "",
-		AccessKey:  "gitecho",
-		SecretKey:  "gitechokey",
-		BucketName: "gitecho",
-	}
-
-	err = s3Storage.InitializeS3Storage()
+	s3storageData, err := json.Marshal(testStorage)
 	assert.NoError(t, err)
 
-	data := map[string]interface{}{
-		"name":          "test-repo",
-		"remote_url":    "https://github.com/LordMathis/GitEcho",
-		"pull_interval": 1,
-		"credentials": map[string]string{
-			"git_username": "",
-			"git_password": "",
-			"git_key_path": "",
-		},
-		"storage": map[string]interface{}{
-			"test": map[string]string{
-				"name":        "test",
-				"type":        "s3",
-				"endpoint":    "http://127.0.0.1:9000",
-				"region":      "",
-				"access_key":  "gitecho",
-				"secret_key":  "gitechokey",
-				"bucket_name": "gitecho",
-			},
-		},
+	s3Storage := &storage.BaseStorage{
+		Name: "test-storage",
+		Type: storage.S3StorageType,
+		Data: string(s3storageData),
 	}
+	jsonStorage, err := json.Marshal(s3Storage)
+	assert.NoError(t, err)
 
-	// Encode the data to JSON
-	jsonData, err := json.MarshalIndent(data, "", "\t")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
+	err = sendPostRequest(t, "http://127.0.0.1:8080/api/v1/storage", jsonStorage)
+	assert.NoError(t, err)
 
-	err = createBackupRepo(t, jsonData)
+	jsonRepo, err := json.Marshal(testBackupRepo)
+	assert.NoError(t, err)
+
+	err = sendPostRequest(t, "http://127.0.0.1:8080/api/v1/repository", jsonRepo)
+	assert.NoError(t, err)
+
+	requestURL := fmt.Sprintf("http://127.0.0.1:8080/api/v1/repository/%s/storage/%s", testBackupRepo.Name, testStorage.Name)
+	err = sendPostRequest(t, requestURL, nil)
 	assert.NoError(t, err)
 
 	//TODO: Find better way to wait for backup
@@ -99,7 +97,9 @@ func TestIntegration(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "test-repo-restore")
 	assert.NoError(t, err)
 
-	err = s3Storage.DownloadDirectory("test-repo", tempDir)
+	stor := storageManager.GetStorage(testStorage.Name)
+
+	err = stor.DownloadDirectory("test-repo", tempDir)
 	assert.NoError(t, err)
 
 	gitClient := gitutil.NewGitClient("", "", "")
@@ -112,18 +112,13 @@ func TestIntegration(t *testing.T) {
 
 func setupTestEnvVars(t *testing.T) {
 	encryption.SetEncryptionKey([]byte("12345678901234567890123456789012"))
-	os.Setenv("DB_TYPE", "postgres")
-	os.Setenv("DB_HOST", "localhost")
-	os.Setenv("DB_PORT", "5432")
-	os.Setenv("DB_USER", "gitecho")
-	os.Setenv("DB_PASSWORD", "gitecho")
-	os.Setenv("DB_NAME", "gitecho")
+	os.Setenv("DB_TYPE", "sqlite3")
+	os.Setenv("DB_PATH", "/test.db")
 	os.Setenv("GITECHO_DATA_PATH", "/tmp")
 }
 
-func createBackupRepo(t *testing.T, jsonData []byte) error {
-	// Perform the HTTP request to create the backup repository
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/repository", bytes.NewBuffer(jsonData))
+func sendPostRequest(t *testing.T, url string, jsonData []byte) error {
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}

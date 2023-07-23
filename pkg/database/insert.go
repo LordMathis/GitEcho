@@ -49,7 +49,7 @@ func (db *Database) InsertOrUpdateStorage(stor storage.Storage) error {
 	switch s := stor.(type) {
 	case *storage.S3Storage:
 
-		dataJSON, err := s.S3StorageMarshaler.MarshalS3Storage(s)
+		dataJSON, err := storage.MarshalS3Storage(s)
 		if err != nil {
 			return err
 		}

@@ -7,7 +7,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 )
 
-func (db *Database) MigrateDB() error {
+func (db *Database) migrateDB() error {
 	// Obtain *sql.DB from *sqlx.DB
 	sqlDB := db.DB.DB
 

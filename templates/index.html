@@ -6,15 +6,17 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+
+    <h1>GitEcho</h1>
+
     <div class="left-panel">
         <h2>Backup Repositories</h2>
         <ul id="backup-repo-list">
-            <!-- Populate backup repositories dynamically using JavaScript -->
         </ul>
     </div>
 
     <div class="right-panel">
-        <h1>Create Backup Repo</h1>
+        <h2>Create Backup Repo</h2>
         <form id="create-backup-form" method="POST">
             <div class="form-grid">
             <label for="name" class="required-label">Name:</label>
@@ -36,6 +38,14 @@
             <input type="text" name="git-key-path" id="git-key-path">
             </div>
 
+            <button type="submit" id="create-backup-btn">Create Backup Repo</button>
+            <button type="button" id="delete-backup-btn">Delete Backup Repo</button>
+
+        </form>
+
+        <h2>Create Storage</h2>
+        <form id="create-storage-form" method="POST">
+
             <div id="storage-options">
                 <!-- Storage options will be dynamically populated based on the selected storage type -->
             </div>
@@ -49,10 +59,23 @@
 
             <button type="button" id="add-storage-btn">Add Remote Storage</button>
 
-            <button type="submit" id="create-backup-btn">Create Backup Repo</button>
+            <button type="submit" id="create-storage-btn">Create Storage</button>
 
-            <button type="button" id="delete-backup-btn">Delete Backup Repo</button>
         </form>
+
+        <h2>Add Storage to Backup Repository</h2>
+        <form id="add-storage-to-backup-form" method="POST">
+            <div class="form-grid">
+                <label for="repo_name" class="required-label">Backup Repo Name:</label>
+                <input type="text" name="repo_name" id="repo_name" required>
+
+                <label for="storage_name" class="required-label">Storage Name:</label>
+                <input type="text" name="storage_name" id="storage_name" required>
+            </div>
+            <button type="submit" id="add-storage-to-repository-btn">Add Storage to Backup Repo</button>
+        </form>
+
+
     </div>
 
     <script src="/static/script.js"></script>

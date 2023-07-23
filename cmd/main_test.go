@@ -7,41 +7,67 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
+	"github.com/LordMathis/GitEcho/pkg/backuprepo"
 	"github.com/LordMathis/GitEcho/pkg/database"
 	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/server"
 	"github.com/LordMathis/GitEcho/pkg/storage"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
 )
 
+var testBackupRepo *backuprepo.BackupRepo = &backuprepo.BackupRepo{
+	Name:         "test-repo",
+	RemoteURL:    "https://github.com/LordMathis/GitEcho",
+	PullInterval: 1,
+	Credentials: backuprepo.Credentials{
+		GitUsername: "",
+		GitPassword: "",
+		GitKeyPath:  "",
+	},
+}
+
+var testStorage *storage.S3Storage = &storage.S3Storage{
+	Name:       "test-storage",
+	Endpoint:   "http://127.0.0.1:9000",
+	Region:     "",
+	AccessKey:  "gitecho",
+	SecretKey:  "gitechokey",
+	BucketName: "gitecho",
+}
+
 func TestIntegration(t *testing.T) {
+	if !isS3StorageAvailable() {
+		t.Skip("Minio is not available. Skipping integration test.")
+	}
 
 	setupTestEnvVars(t)
 
-	db, err := database.ConnectDB()
+	db, err := database.InitializeDatabase()
 	if err != nil {
-		t.Skip("error connecting to database", err)
+		log.Fatalln(err)
 	}
-
-	err = db.MigrateDB()
-	if err != nil {
-		t.Skip("error migrating database", err)
-	}
-
 	defer db.CloseDB()
+	defer cleanup()
 
-	dispatcher := backup.NewBackupDispatcher()
-	assert.NoError(t, err)
-	dispatcher.Start()
+	storageManager := initializeStorageManager(db)
+	backupRepoManager := initializeBackupRepoManager(db, storageManager)
+	scheduler := backup.NewBackupScheduler(backupRepoManager)
 
 	templatesDir := getTemplatesDirectory()
 
-	apiHandler := server.NewAPIHandler(dispatcher, db, templatesDir)
+	apiHandler := server.NewAPIHandler(db, backupRepoManager, storageManager, scheduler, templatesDir)
+
+	scheduler.Start()
 
 	go func() {
 		err := http.ListenAndServe(":8080", server.SetupRouter(apiHandler))
@@ -50,47 +76,31 @@ func TestIntegration(t *testing.T) {
 		}
 	}()
 
-	s3Storage := &storage.S3Storage{
-		Endpoint:   "http://127.0.0.1:9000",
-		Region:     "",
-		AccessKey:  "gitecho",
-		SecretKey:  "gitechokey",
-		BucketName: "gitecho",
-	}
-
-	err = s3Storage.InitializeS3Storage()
+	err = waitServerReady("http://127.0.0.1:8080/api/v1/repository", 100*time.Second)
 	assert.NoError(t, err)
 
-	data := map[string]interface{}{
-		"name":          "test-repo",
-		"remote_url":    "https://github.com/LordMathis/GitEcho",
-		"pull_interval": 1,
-		"credentials": map[string]string{
-			"git_username": "",
-			"git_password": "",
-			"git_key_path": "",
-		},
-		"storage": map[string]interface{}{
-			"test": map[string]string{
-				"name":        "test",
-				"type":        "s3",
-				"endpoint":    "http://127.0.0.1:9000",
-				"region":      "",
-				"access_key":  "gitecho",
-				"secret_key":  "gitechokey",
-				"bucket_name": "gitecho",
-			},
-		},
-	}
+	s3storageData, err := json.Marshal(testStorage)
+	assert.NoError(t, err)
 
-	// Encode the data to JSON
-	jsonData, err := json.MarshalIndent(data, "", "\t")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
+	s3Storage := &storage.BaseStorage{
+		Name: "test-storage",
+		Type: storage.S3StorageType,
+		Data: string(s3storageData),
 	}
+	jsonStorage, err := json.Marshal(s3Storage)
+	assert.NoError(t, err)
 
-	err = createBackupRepo(t, jsonData)
+	err = sendPostRequest(t, "http://127.0.0.1:8080/api/v1/storage", jsonStorage)
+	assert.NoError(t, err)
+
+	jsonRepo, err := json.Marshal(testBackupRepo)
+	assert.NoError(t, err)
+
+	err = sendPostRequest(t, "http://127.0.0.1:8080/api/v1/repository", jsonRepo)
+	assert.NoError(t, err)
+
+	requestURL := fmt.Sprintf("http://127.0.0.1:8080/api/v1/repository/%s/storage/%s", testBackupRepo.Name, testStorage.Name)
+	err = sendPostRequest(t, requestURL, nil)
 	assert.NoError(t, err)
 
 	//TODO: Find better way to wait for backup
@@ -99,7 +109,9 @@ func TestIntegration(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "test-repo-restore")
 	assert.NoError(t, err)
 
-	err = s3Storage.DownloadDirectory("test-repo", tempDir)
+	stor := storageManager.GetStorage(testStorage.Name)
+
+	err = stor.DownloadDirectory("test-repo", tempDir)
 	assert.NoError(t, err)
 
 	gitClient := gitutil.NewGitClient("", "", "")
@@ -112,32 +124,87 @@ func TestIntegration(t *testing.T) {
 
 func setupTestEnvVars(t *testing.T) {
 	encryption.SetEncryptionKey([]byte("12345678901234567890123456789012"))
-	os.Setenv("DB_TYPE", "postgres")
-	os.Setenv("DB_HOST", "localhost")
-	os.Setenv("DB_PORT", "5432")
-	os.Setenv("DB_USER", "gitecho")
-	os.Setenv("DB_PASSWORD", "gitecho")
-	os.Setenv("DB_NAME", "gitecho")
+	os.Setenv("DB_TYPE", "sqlite3")
+	os.Setenv("DB_PATH", "./test.db")
 	os.Setenv("GITECHO_DATA_PATH", "/tmp")
 }
 
-func createBackupRepo(t *testing.T, jsonData []byte) error {
-	// Perform the HTTP request to create the backup repository
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/repository", bytes.NewBuffer(jsonData))
+func sendPostRequest(t *testing.T, url string, jsonData []byte) error {
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %v", err)
+		return err
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send HTTP request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to create backup repository, status code: %d", resp.StatusCode)
+		return fmt.Errorf("failed to create resource, status code: %d", resp.StatusCode)
 	}
 
 	return nil
+}
+
+func waitServerReady(url string, timeout time.Duration) error {
+	startTime := time.Now()
+
+	for {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			// Request succeeded, return the response
+			return nil
+		}
+
+		// Check if the timeout has been reached
+		if time.Since(startTime) >= timeout {
+			return fmt.Errorf("timeout reached while making GET request")
+		}
+
+		// Wait for a short duration before retrying
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func isS3StorageAvailable() bool {
+	// Create a new AWS session
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-1"), // Replace with the appropriate AWS region
+		Endpoint:    aws.String(testStorage.Endpoint),
+		Credentials: credentials.NewStaticCredentials(testStorage.AccessKey, testStorage.SecretKey, ""),
+	})
+	if err != nil {
+		return false
+	}
+
+	// Create an S3 client
+	svc := s3.New(sess)
+
+	// Perform a simple S3 operation to check if Minio is reachable
+	_, err = svc.ListBuckets(nil)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func cleanup() {
+	err := os.Remove(os.Getenv("DB_PATH"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.RemoveAll(filepath.Join(os.Getenv("GITECHO_DATA_PATH"), "test-repo"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.RemoveAll(filepath.Join(os.Getenv("GITECHO_DATA_PATH"), "test-repo-restore"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

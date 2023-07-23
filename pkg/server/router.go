@@ -21,14 +21,39 @@ func SetupRouter(apiHandler *APIHandler) *chi.Mux {
 	}))
 
 	router.Get(staticURLPattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.StripPrefix("/static/", http.FileServer(http.Dir(apiHandler.StaticDir))).ServeHTTP(w, r)
+		http.StripPrefix("/static/", http.FileServer(http.Dir(apiHandler.staticDir))).ServeHTTP(w, r)
 	}))
 
-	router.Post("/api/v1/repository", apiHandler.HandleCreateBackupRepo)
-	router.Get("/api/v1/repository/{name}", apiHandler.HandleGetBackupRepoByName)
-	router.Get("/api/v1/repository", apiHandler.HandleGetBackupRepos)
-	router.Delete("/api/v1/repository/{name}", apiHandler.HandleDelete)
+	apiRouter := chi.NewRouter()
+	apiRouter.Route("/", func(r chi.Router) {
+		r.Route("/repository", func(r chi.Router) {
+			r.Post("/", apiHandler.HandleCreateBackupRepo)
+			r.Get("/", apiHandler.HandleGetBackupRepos)
+			r.Route("/{repo_name}", func(r chi.Router) {
+				r.Get("/", apiHandler.HandleGetBackupRepoByName)
+				r.Delete("/", apiHandler.HandleDeleteBackupRepo)
+				r.Route("/storage/", func(r chi.Router) {
+					r.Get("/", apiHandler.HandleGetBackupRepoStorages)
+					r.Route("/{storage_name}", func(r chi.Router) {
+						r.Post("/", apiHandler.HandleAddBackupRepoStorage)
+						r.Delete("/", apiHandler.HandleRemoveBackupRepoStorage)
+					})
+				})
+			})
+		})
+
+		r.Route("/storage", func(r chi.Router) {
+			r.Post("/", apiHandler.HandleCreateStorage)
+			r.Get("/", apiHandler.HandleGetStorages)
+			r.Route("/{storage_name}", func(r chi.Router) {
+				r.Get("/", apiHandler.HandleGetStorageByName)
+				r.Delete("/", apiHandler.HandleDeleteStorage)
+			})
+		})
+	})
+
 	router.Get("/", apiHandler.HandleIndex)
+	router.Mount("/api/v1", apiRouter)
 
 	return router
 }

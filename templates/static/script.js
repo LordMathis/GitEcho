@@ -25,17 +25,6 @@ fetch('/api/v1/repository')
     document.getElementById('git-username').value = backupRepo.credentials.git_username;
     document.getElementById('git-password').value = backupRepo.credentials.git_password;
     document.getElementById('git-key-path').value = backupRepo.credentials.git_key_path;
-
-    // Clear the existing storage options
-    const storageOptionsDiv = document.getElementById('storage-options');
-    storageOptionsDiv.innerHTML = '';
-
-    // Iterate through the backup repo's storages and add them to the form
-    for (const storageName in backupRepo.storage) {
-      const storage = backupRepo.storage[storageName];
-      const storageForm = createStorageForm(storage);
-      storageOptionsDiv.appendChild(storageForm);
-    }
   }
 
 // Show storage options form based on the selected storage type
@@ -48,6 +37,7 @@ function showStorageOptions() {
       type: 's3',
     }
     const storageForm = createStorageForm(storage);
+    storageOptionsDiv.innerHTML = '';
     storageOptionsDiv.appendChild(storageForm);
   }
 }
@@ -71,10 +61,6 @@ const createBackupBtn = document.getElementById('create-backup-btn');
 createBackupBtn.addEventListener('click', (event) => {
   event.preventDefault(); // Prevent form submission
 
-  // Get all storage forms
-  const storageForms = document.querySelectorAll('.storage-form');
-
-
   // Retrieve form inputs
   const name = document.getElementById('name').value;
   const remoteUrl = document.getElementById('remote-url').value;
@@ -94,31 +80,8 @@ createBackupBtn.addEventListener('click', (event) => {
       git_password: gitPassword,
       git_key_path: gitKeyPath,
     },
-    storage: {},
   };
 
-  // Iterate through each storage form and add the data to the storages object
-  storageForms.forEach((form, index) => {
-    const storageName = form.querySelector('input[name="storage-name"]').value;
-    const storageEndpoint = form.querySelector('input[name="storage-endpoint"]').value;
-    const storageRegion = form.querySelector('input[name="storage-region"]').value;
-    const storageAccessKey = form.querySelector('input[name="storage-access-key"]').value;
-    const storageSecretKey = form.querySelector('input[name="storage-secret-key"]').value;
-    const storageBucketName = form.querySelector('input[name="storage-bucket-name"]').value;
-
-    data.storage[storageName] = {
-      name: storageName,
-      type: form.getAttribute('data-storage-type'),
-      endpoint: storageEndpoint,
-      region: storageRegion,
-      access_key: storageAccessKey,
-      secret_key: storageSecretKey,
-      bucket_name: storageBucketName,
-    };
-  });
-
-  // Send the data to the API endpoint using fetch or your preferred AJAX method
-  // Replace "/api/v1/backupRepos" with your actual API endpoint
   fetch('/api/v1/repository', {
     method: 'POST',
     headers: {
@@ -140,6 +103,7 @@ createBackupBtn.addEventListener('click', (event) => {
 function createStorageForm(storage) {
   const storageForm = document.createElement('div');
   storageForm.className = 'storage-form';
+  storageForm.id = `storage-form-${storage.type}`;
   storageForm.setAttribute('data-storage-type', storage.type);
 
   storageForm.innerHTML = `
@@ -185,3 +149,72 @@ function deleteBackupRepo(repoName) {
       // Handle errors if any
     });
 }
+
+const createStorageBtn = document.getElementById('create-storage-btn');
+createStorageBtn.addEventListener('click', (event) => {
+  event.preventDefault();
+    // Iterate through each storage form and add the data to the storages object
+  const storageForm = document.getElementById('storage-form-s3');
+
+  const storageName = storageForm.querySelector('input[name="storage-name"]').value;
+  const storageEndpoint = storageForm.querySelector('input[name="storage-endpoint"]').value;
+  const storageRegion = storageForm.querySelector('input[name="storage-region"]').value;
+  const storageAccessKey = storageForm.querySelector('input[name="storage-access-key"]').value;
+  const storageSecretKey = storageForm.querySelector('input[name="storage-secret-key"]').value;
+  const storageBucketName = storageForm.querySelector('input[name="storage-bucket-name"]').value;
+
+  storageData = {
+    name: storageName,
+    type: storageForm.getAttribute('data-storage-type'),
+    data: JSON.stringify({
+      name: storageName,
+      endpoint: storageEndpoint,
+      region: storageRegion,
+      access_key: storageAccessKey,
+      secret_key: storageSecretKey,
+      bucket_name: storageBucketName,
+    })
+  };
+
+  fetch('/api/v1/storage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(storageData),
+  })
+    .then(response => response.json())
+    .then(result => {
+      console.log(result);
+      // Handle the API response as needed
+    })
+    .catch(error => {
+      console.error(error);
+      // Handle errors if any
+    });
+});
+
+const addStorageToRepositoryBtn = document.getElementById('add-storage-to-repository-btn');
+addStorageToRepositoryBtn.addEventListener('click', (event) => {
+  event.preventDefault();
+
+  const repoName = document.getElementById('repo_name').value;
+  const storageName = document.getElementById('storage_name').value;
+
+  fetch(`/api/v1/repository/${repoName}/storage/${storageName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(response => response.json())
+    .then(result => {
+      console.log(result);
+      // Handle the API response as needed
+    })
+    .catch(error => {
+      console.error(error);
+      // Handle errors if any
+    });
+
+});

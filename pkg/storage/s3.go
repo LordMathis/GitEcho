@@ -16,22 +16,14 @@ import (
 )
 
 type S3Storage struct {
-	S3StorageMarshaler S3StorageMarshaler `json:"-"`
-	Session            *session.Session   `json:"-"`
-	S3Client           s3iface.S3API      `json:"-"`
-	Name               string             `json:"name"`
-	Endpoint           string             `json:"endpoint"`
-	Region             string             `json:"region"`
-	AccessKey          string             `json:"access_key"`
-	SecretKey          string             `json:"secret_key"`
-	BucketName         string             `json:"bucket_name"`
-}
-
-type S3StorageMarshaler interface {
-	MarshalS3Storage(s3Storage *S3Storage) ([]byte, error)
-}
-
-type S3StorageMarshalerImpl struct {
+	Session    *session.Session `json:"-"`
+	S3Client   s3iface.S3API    `json:"-"`
+	Name       string           `json:"name"`
+	Endpoint   string           `json:"endpoint"`
+	Region     string           `json:"region"`
+	AccessKey  string           `json:"access_key"`
+	SecretKey  string           `json:"secret_key"`
+	BucketName string           `json:"bucket_name"`
 }
 
 func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {
@@ -63,12 +55,15 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func NewS3StorageFromJson(storageData json.RawMessage) (*S3Storage, error) {
+func NewS3StorageFromBase(baseStorage BaseStorage) (*S3Storage, error) {
+
 	var s3Storage S3Storage
-	err := json.Unmarshal(storageData, &s3Storage)
+	err := json.Unmarshal([]byte(baseStorage.Data), &s3Storage)
 	if err != nil {
 		return nil, err
 	}
+
+	s3Storage.Name = baseStorage.Name
 
 	err = s3Storage.InitializeS3Storage()
 	if err != nil {
@@ -89,12 +84,10 @@ func (s *S3Storage) InitializeS3Storage() error {
 	s.Session = session
 	s.S3Client = svc
 
-	s.S3StorageMarshaler = &S3StorageMarshalerImpl{}
-
 	return nil
 }
 
-func (s *S3StorageMarshalerImpl) MarshalS3Storage(s3Storage *S3Storage) ([]byte, error) {
+func MarshalS3Storage(s3Storage *S3Storage) ([]byte, error) {
 
 	// Encrypt the access key and secret key
 	encryptedAccessKey, err := encryption.Encrypt([]byte(s3Storage.AccessKey))
@@ -142,6 +135,14 @@ func (s *S3Storage) DecryptKeys() error {
 	s.SecretKey = string(decryptedSecretKey)
 
 	return nil
+}
+
+func (s *S3Storage) GetName() string {
+	return s.Name
+}
+
+func (s *S3Storage) GetType() StorageType {
+	return S3StorageType
 }
 
 // UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.

@@ -47,7 +47,7 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := chi.URLParam(r, "repo_name")
 
 	backupRepo := a.backupRepoManager.GetBackupRepo(name)
 
@@ -79,8 +79,7 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 
 func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
-	name := chi.URLParam(r, "name")
-	// Alternatively, if using query parameters: name := r.URL.Query().Get("name")
+	name := chi.URLParam(r, "repo_name")
 
 	// Delete the backup repository from the database
 	err := a.db.DeleteBackupRepo(name)
@@ -109,7 +108,7 @@ func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Reque
 
 func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
-	name := chi.URLParam(r, "name")
+	name := chi.URLParam(r, "repo_name")
 
 	repo := a.backupRepoManager.GetBackupRepo(name)
 	var storages []storage.Storage
@@ -132,7 +131,7 @@ func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.
 
 func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
-	repoName := chi.URLParam(r, "backup_repo")
+	repoName := chi.URLParam(r, "repo_name")
 	storageName := chi.URLParam(r, "storage_name")
 
 	// Check if the backup repo exists in the manager
@@ -165,7 +164,7 @@ func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.R
 
 func (a *APIHandler) HandleRemoveBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
-	repoName := chi.URLParam(r, "backup_repo")
+	repoName := chi.URLParam(r, "repo_name")
 	storageName := chi.URLParam(r, "storage_name")
 
 	repo := a.backupRepoManager.GetBackupRepo(repoName)

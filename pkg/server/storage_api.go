@@ -41,7 +41,7 @@ func (a *APIHandler) HandleCreateStorage(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *APIHandler) HandleGetStorageByName(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := chi.URLParam(r, "storage_name")
 
 	stor := a.storageManager.GetStorage(name)
 	if stor == nil {
@@ -75,7 +75,7 @@ func (a *APIHandler) HandleGetStorages(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIHandler) HandleDeleteStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
-	name := chi.URLParam(r, "name")
+	name := chi.URLParam(r, "storage_name")
 
 	// Delete the backup repository from the database
 	err := a.db.DeleteStorage(name)

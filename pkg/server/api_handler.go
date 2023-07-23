@@ -10,28 +10,21 @@ import (
 )
 
 type APIHandler struct {
-	Dispatcher           *backup.BackupDispatcher
-	Db                   *database.Database
-	StorageManager       *storage.StorageManager
-	RepositoryAdder      backup.RepositoryAdder
-	BackupRepoNameGetter database.BackupRepoNameGetter
-	BackupReposGetter    database.BackupReposGetter
-	BackupRepoInserter   database.BackupRepoInserter
-	BackupRepoProcessor  backuprepo.BackupRepoProcessor
-	TemplatesDir         string
-	StaticDir            string
+	db                *database.Database
+	backupRepoManager *backuprepo.BackupRepoManager
+	storageManager    *storage.StorageManager
+	scheduler         *backup.BackupScheduler
+	templatesDir      string
+	staticDir         string
 }
 
-func NewAPIHandler(dispatcher *backup.BackupDispatcher, db *database.Database, templatesDir string) *APIHandler {
+func NewAPIHandler(db *database.Database, bm *backuprepo.BackupRepoManager, sm *storage.StorageManager, scheduler *backup.BackupScheduler, templatesDir string) *APIHandler {
 	return &APIHandler{
-		Dispatcher:           dispatcher,
-		Db:                   db,
-		BackupRepoNameGetter: db,
-		BackupReposGetter:    db,
-		BackupRepoInserter:   db,
-		RepositoryAdder:      dispatcher,
-		BackupRepoProcessor:  &backuprepo.BackupRepoProcessorImpl{},
-		TemplatesDir:         templatesDir,
-		StaticDir:            filepath.Join(templatesDir, "static"),
+		db:                db,
+		backupRepoManager: bm,
+		storageManager:    sm,
+		scheduler:         scheduler,
+		templatesDir:      templatesDir,
+		staticDir:         filepath.Join(templatesDir, "static"),
 	}
 }

@@ -57,7 +57,7 @@ func (db *Database) InsertOrUpdateStorage(stor storage.Storage) error {
 		_, err = stmtStorage.Exec(&storage.BaseStorage{
 			Name: s.Name,
 			Type: "s3",
-			Data: string(dataJSON),
+			Data: dataJSON,
 		})
 		if err != nil {
 			return err

@@ -10,6 +10,18 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// @Summary Create a new backup repository configuration
+// @Description Create a new backup repository configuration with the given data
+// @Tags backup-repositories
+// @Accept json
+// @Produce json
+// @Param backupRepo body backuprepo.BackupRepo true "Backup repository data"
+// @Success 200 {object} SuccessResponse "Success response"“
+// @Failure 400 {string} string "Invalid request body"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository [post]
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -43,11 +55,34 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 	a.backupRepoManager.AddBackupRepo(backupRepo)
 	a.scheduler.RescheduleBackup(backupRepo)
 
+	response := SuccessResponse{
+		Message: "Backup repository config created successfully",
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"message":"Backup repository config created successfully"}`))
+	w.Write(jsonResponse)
 }
 
+// @Summary Get a backup repository by name
+// @Description Get the backup repository with the given name
+// @Tags backup-repositories
+// @Accept json
+// @Produce json
+// @Param repo_name path string true "Name of the backup repository to retrieve"
+// @Success 200 {object} backuprepo.BackupRepo "Backup repository data"
+// @Failure 400 {string} string "Invalid request parameters"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 404 {string} string "Backup repository not found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository/{repo_name} [get]
 func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "repo_name")
 
@@ -64,6 +99,16 @@ func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
+// @Summary Get all backup repositories
+// @Description Get a list of all backup repositories
+// @Tags backup-repositories
+// @Accept json
+// @Produce json
+// @Success 200 {array} backuprepo.BackupRepo "List of backup repositories"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository [get]
 func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
 
 	backupRepos := a.backupRepoManager.GetAllBackupRepos()
@@ -79,24 +124,31 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 	w.Write(backupReposJSON)
 }
 
+// @Summary Delete a backup repository
+// @Description Delete a backup repository by its name
+// @Tags backup-repositories
+// @Param repo_name path string true "Name of the backup repository to delete"
+// @Success 200 {object} SuccessResponse "Success response"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository/{repo_name} [delete]
 func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
-	// Get the repository name from the URL/query parameters
 	name := chi.URLParam(r, "repo_name")
 
-	// Delete the backup repository from the database
 	err := a.db.DeleteBackupRepo(name)
 	if err != nil {
-		// Handle the error (e.g., return appropriate HTTP response)
 		http.Error(w, "Failed to delete backup repository", http.StatusInternalServerError)
 		return
 	}
 
-	// Delete the backup repository from the dispatcher
 	a.backupRepoManager.DeleteBackupRepo(name)
 
-	response := map[string]string{
-		"message": "Backup repository deleted successfully",
+	response := SuccessResponse{
+		Message: "Backup repository deleted successfully",
 	}
+
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
@@ -108,6 +160,17 @@ func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Reque
 	w.Write(jsonResponse)
 }
 
+// @Summary Get backup repository storages
+// @Description Get all storages associated with a backup repository by its name
+// @Tags backup-repositories
+// @Param repo_name path string true "Name of the backup repository"
+// @Success 200 {array} storage.Storage "List of storages associated with the backup repository"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 404 {string} string "Not Found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository/{repo_name}/storage/ [get]
 func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
 	name := chi.URLParam(r, "repo_name")
@@ -131,6 +194,18 @@ func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.
 	w.Write(jsonResponse)
 }
 
+// @Summary Add storage to backup repository
+// @Description Associate a storage with a backup repository by their names
+// @Tags backup-repositories
+// @Param repo_name path string true "Name of the backup repository"
+// @Param storage_name path string true "Name of the storage"
+// @Success 200 {object} SuccessResponse "Success response"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 404 {string} string "Not Found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository/{repo_name}/storage/{storage_name} [post]
 func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
 	repoName := chi.URLParam(r, "repo_name")
@@ -159,11 +234,33 @@ func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.R
 
 	repo.AddStorage(storage)
 
+	response := SuccessResponse{
+		Message: "Storage added to backup repository successfully",
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message":"Storage added to backup repository successfully"}`))
+	w.Write(jsonResponse)
 }
 
+// @Summary Remove storage from backup repository
+// @Description Remove the association between a storage and a backup repository by their names
+// @Tags backup-repositories
+// @Param repo_name path string true "Name of the backup repository"
+// @Param storage_name path string true "Name of the storage"
+// @Success 200 {object} SuccessResponse "Success response"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 404 {string} string "Not Found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/repository/{repo_name}/storage/{storage_name} [delete]
 func (a *APIHandler) HandleRemoveBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
 	repoName := chi.URLParam(r, "repo_name")
@@ -183,7 +280,17 @@ func (a *APIHandler) HandleRemoveBackupRepoStorage(w http.ResponseWriter, r *htt
 
 	repo.RemoveStorage(storageName)
 
+	response := SuccessResponse{
+		Message: "Storage removed from backup repository successfully",
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message":"Storage removed from backup repository successfully"}`))
+	w.Write(jsonResponse)
 }

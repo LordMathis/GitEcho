@@ -1,0 +1,444 @@
+basePath: /api/v1
+definitions:
+  backuprepo.BackupRepo:
+    properties:
+      credentials:
+        $ref: '#/definitions/backuprepo.Credentials'
+      name:
+        type: string
+      pull_interval:
+        type: integer
+      remote_url:
+        type: string
+    type: object
+  backuprepo.Credentials:
+    properties:
+      key_path:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  server.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  storage.BaseStorage:
+    type: object
+  storage.StorageType:
+    enum:
+    - s3
+    type: string
+    x-enum-varnames:
+    - S3StorageType
+info:
+  contact: {}
+  description: REST API for GitEcho, a tool for backing up Git repositories
+  license:
+    name: MIT
+    url: http://www.opensource.org/licenses/MIT
+  title: GitEcho API
+  version: "1.0"
+paths:
+  /api/v1/repository:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all backup repositories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of backup repositories
+          schema:
+            items:
+              $ref: '#/definitions/backuprepo.BackupRepo'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get all backup repositories
+      tags:
+      - backup-repositories
+    post:
+      consumes:
+      - application/json
+      description: Create a new backup repository configuration with the given data
+      parameters:
+      - description: Backup repository data
+        in: body
+        name: backupRepo
+        required: true
+        schema:
+          $ref: '#/definitions/backuprepo.BackupRepo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success response"“
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Create a new backup repository configuration
+      tags:
+      - backup-repositories
+  /api/v1/repository/{repo_name}:
+    delete:
+      description: Delete a backup repository by its name
+      parameters:
+      - description: Name of the backup repository to delete
+        in: path
+        name: repo_name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Success response
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Delete a backup repository
+      tags:
+      - backup-repositories
+    get:
+      consumes:
+      - application/json
+      description: Get the backup repository with the given name
+      parameters:
+      - description: Name of the backup repository to retrieve
+        in: path
+        name: repo_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Backup repository data
+          schema:
+            $ref: '#/definitions/backuprepo.BackupRepo'
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Backup repository not found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get a backup repository by name
+      tags:
+      - backup-repositories
+  /api/v1/repository/{repo_name}/storage/:
+    get:
+      description: Get all storages associated with a backup repository by its name
+      parameters:
+      - description: Name of the backup repository
+        in: path
+        name: repo_name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: List of storages associated with the backup repository
+          schema:
+            items: {}
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get backup repository storages
+      tags:
+      - backup-repositories
+  /api/v1/repository/{repo_name}/storage/{storage_name}:
+    delete:
+      description: Remove the association between a storage and a backup repository
+        by their names
+      parameters:
+      - description: Name of the backup repository
+        in: path
+        name: repo_name
+        required: true
+        type: string
+      - description: Name of the storage
+        in: path
+        name: storage_name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Success response
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Remove storage from backup repository
+      tags:
+      - backup-repositories
+    post:
+      description: Associate a storage with a backup repository by their names
+      parameters:
+      - description: Name of the backup repository
+        in: path
+        name: repo_name
+        required: true
+        type: string
+      - description: Name of the storage
+        in: path
+        name: storage_name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Success response
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Add storage to backup repository
+      tags:
+      - backup-repositories
+  /api/v1/storage/:
+    get:
+      description: Get all storage configurations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all storage configurations
+          schema:
+            items: {}
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      tags:
+      - storages
+    post:
+      consumes:
+      - application/json
+      description: Create a new storage configuration
+      parameters:
+      - description: Storage configuration to create
+        in: body
+        name: storage
+        required: true
+        schema:
+          $ref: '#/definitions/storage.BaseStorage'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success response
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Create storage
+      tags:
+      - storages
+  /api/v1/storage/{storage_name}:
+    delete:
+      description: Delete the storage configuration by its name
+      parameters:
+      - description: Name of the storage
+        in: path
+        name: storage_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success response
+          schema:
+            $ref: '#/definitions/server.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Delete storage
+      tags:
+      - storages
+    get:
+      description: Get the storage configuration by its name
+      parameters:
+      - description: Name of the storage
+        in: path
+        name: storage_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage configuration
+          schema: {}
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get storage by name
+      tags:
+      - storages
+swagger: "2.0"

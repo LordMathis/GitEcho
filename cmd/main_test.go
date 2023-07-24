@@ -85,7 +85,7 @@ func TestIntegration(t *testing.T) {
 	s3Storage := &storage.BaseStorage{
 		Name: "test-storage",
 		Type: storage.S3StorageType,
-		Data: string(s3storageData),
+		Data: s3storageData,
 	}
 	jsonStorage, err := json.Marshal(s3Storage)
 	assert.NoError(t, err)
@@ -185,11 +185,7 @@ func isS3StorageAvailable() bool {
 
 	// Perform a simple S3 operation to check if Minio is reachable
 	_, err = svc.ListBuckets(nil)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func cleanup() {

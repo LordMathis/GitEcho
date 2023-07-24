@@ -8,6 +8,18 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// @Summary Create storage
+// @Description Create a new storage configuration
+// @Tags storages
+// @Accept json
+// @Produce json
+// @Param storage body storage.BaseStorage true "Storage configuration to create"
+// @Success 200 {object} SuccessResponse "Success response"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/storage/ [post]
 func (a *APIHandler) HandleCreateStorage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -35,11 +47,33 @@ func (a *APIHandler) HandleCreateStorage(w http.ResponseWriter, r *http.Request)
 
 	a.storageManager.AddStorage(stor)
 
+	response := SuccessResponse{
+		Message: "Storage config created successfully",
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"message":"Storage config created successfully"}`))
+	w.Write(jsonResponse)
 }
 
+// @Summary Get storage by name
+// @Description Get the storage configuration by its name
+// @Tags storages
+// @Param storage_name path string true "Name of the storage"
+// @Produce json
+// @Success 200 {object} storage.Storage "Storage configuration"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 404 {string} string "Not Found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/storage/{storage_name} [get]
 func (a *APIHandler) HandleGetStorageByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "storage_name")
 
@@ -59,6 +93,15 @@ func (a *APIHandler) HandleGetStorageByName(w http.ResponseWriter, r *http.Reque
 	w.Write(response)
 }
 
+// @Description Get all storage configurations
+// @Tags storages
+// @Produce json
+// @Success 200 {array} storage.Storage "List of all storage configurations"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/storage/ [get]
 func (a *APIHandler) HandleGetStorages(w http.ResponseWriter, r *http.Request) {
 
 	stors := a.storageManager.GetAllStorages()
@@ -73,14 +116,22 @@ func (a *APIHandler) HandleGetStorages(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
+// @Summary Delete storage
+// @Description Delete the storage configuration by its name
+// @Tags storages
+// @Param storage_name path string true "Name of the storage"
+// @Produce json
+// @Success 200 {object} SuccessResponse "Success response"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Forbidden"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/v1/storage/{storage_name} [delete]
 func (a *APIHandler) HandleDeleteStorage(w http.ResponseWriter, r *http.Request) {
-	// Get the repository name from the URL/query parameters
 	name := chi.URLParam(r, "storage_name")
 
-	// Delete the backup repository from the database
 	err := a.db.DeleteStorage(name)
 	if err != nil {
-		// Handle the error (e.g., return appropriate HTTP response)
 		http.Error(w, "Failed to delete backup repository", http.StatusInternalServerError)
 		return
 	}
@@ -91,10 +142,10 @@ func (a *APIHandler) HandleDeleteStorage(w http.ResponseWriter, r *http.Request)
 		repo.RemoveStorage(name)
 	}
 
-	// Delete the backup repository from the dispatcher
-	response := map[string]string{
-		"message": "Remote storage deleted successfully",
+	response := SuccessResponse{
+		Message: "Backup repository deleted successfully",
 	}
+
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, "Failed to serialize response", http.StatusInternalServerError)

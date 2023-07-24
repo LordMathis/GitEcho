@@ -1,83 +1,14 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Create Backup Repo</title>
-    <link rel="stylesheet" href="/static/styles.css">
+  <meta charset="UTF-8">
+  <title>GitEcho</title>
+  <link rel="stylesheet" href="styles.css"> <!-- Link to the external CSS file -->
 </head>
 <body>
-
-    <h1>GitEcho</h1>
-
-    <div class="left-panel">
-        <h2>Backup Repositories</h2>
-        <ul id="backup-repo-list">
-        </ul>
-    </div>
-
-    <div class="right-panel">
-        <h2>Create Backup Repo</h2>
-        <form id="create-backup-form" method="POST">
-            <div class="form-grid">
-            <label for="name" class="required-label">Name:</label>
-            <input type="text" name="name" id="name" required>
-
-            <label for="remote-url" class="required-label">Remote URL:</label>
-            <input type="text" name="remote-url" id="remote-url" required>
-
-            <label for="pull-interval" class="required-label">Pull Interval:</label>
-            <input type="number" name="pull-interval" id="pull-interval" required>
-
-            <label for="git-username">Git Username:</label>
-            <input type="text" name="git-username" id="git-username">
-
-            <label for="git-password">Git Password:</label>
-            <input type="password" name="git-password" id="git-password">
-
-            <label for="git-key-path">Git Key Path:</label>
-            <input type="text" name="git-key-path" id="git-key-path">
-            </div>
-
-            <button type="submit" id="create-backup-btn">Create Backup Repo</button>
-            <button type="button" id="delete-backup-btn">Delete Backup Repo</button>
-
-        </form>
-
-        <h2>Create Storage</h2>
-        <form id="create-storage-form" method="POST">
-
-            <div id="storage-options">
-                <!-- Storage options will be dynamically populated based on the selected storage type -->
-            </div>
-
-            <label for="storage-type">Storage Type:</label>
-            <select name="storage-type" id="storage-type">
-                <option value="">---</option>
-                <option value="s3">S3</option>
-                <!-- Add options for other storage types as needed -->
-            </select>
-
-            <button type="button" id="add-storage-btn">Add Remote Storage</button>
-
-            <button type="submit" id="create-storage-btn">Create Storage</button>
-
-        </form>
-
-        <h2>Add Storage to Backup Repository</h2>
-        <form id="add-storage-to-backup-form" method="POST">
-            <div class="form-grid">
-                <label for="repo_name" class="required-label">Backup Repo Name:</label>
-                <input type="text" name="repo_name" id="repo_name" required>
-
-                <label for="storage_name" class="required-label">Storage Name:</label>
-                <input type="text" name="storage_name" id="storage_name" required>
-            </div>
-            <button type="submit" id="add-storage-to-repository-btn">Add Storage to Backup Repo</button>
-        </form>
-
-
-    </div>
-
-    <script src="/static/script.js"></script>
+  <h1>GitEcho</h1>
+  <p>The frontend of GitEcho is currently under development.</p>
+  <p>In the meantime, you can explore the Swagger API documentation:</p>
+  <a href="/swagger/index.html">Swagger API Documentation</a>
 </body>
 </html>

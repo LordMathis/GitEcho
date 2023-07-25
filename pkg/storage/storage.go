@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -15,12 +14,10 @@ type Storage interface {
 
 type StorageType string
 
-type JSONData json.RawMessage
-
 type BaseStorage struct {
-	Name string      `json:"name" db:"name"`
-	Type StorageType `json:"type" db:"type"`
-	Data JSONData    `json:"data" db:"data"`
+	Name string          `json:"name" db:"name"`
+	Type StorageType     `json:"type" db:"type"`
+	Data json.RawMessage `json:"data" db:"data"`
 }
 
 const S3StorageType StorageType = "s3"
@@ -41,16 +38,4 @@ func CreateStorage(baseStorage BaseStorage) (Storage, error) {
 	}
 
 	return storageInstance, nil
-}
-
-func (j *JSONData) Scan(value interface{}) error {
-	// Check if the value is a string
-	str, ok := value.(string)
-	if !ok {
-		return errors.New("failed to scan JSONData: value is not a string")
-	}
-
-	// Unmarshal the string into the json.RawMessage field
-	*j = JSONData(str)
-	return nil
 }

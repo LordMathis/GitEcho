@@ -20,7 +20,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/repository": {
+        "/repository": {
             "get": {
                 "description": "Get a list of all backup repositories",
                 "consumes": [
@@ -41,18 +41,6 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/backuprepo.BackupRepo"
                             }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
                         }
                     },
                     "500": {
@@ -99,18 +87,6 @@ const docTemplate = `{
                             "type": "string"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -120,7 +96,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/repository/{repo_name}": {
+        "/repository/{repo_name}": {
             "get": {
                 "description": "Get the backup repository with the given name",
                 "consumes": [
@@ -147,24 +123,6 @@ const docTemplate = `{
                         "description": "Backup repository data",
                         "schema": {
                             "$ref": "#/definitions/backuprepo.BackupRepo"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
                         }
                     },
                     "404": {
@@ -203,24 +161,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.SuccessResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -230,7 +170,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/repository/{repo_name}/storage/": {
+        "/repository/{repo_name}/storage/": {
             "get": {
                 "description": "Get all storages associated with a backup repository by its name",
                 "tags": [
@@ -254,30 +194,6 @@ const docTemplate = `{
                             "items": {}
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -287,7 +203,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/repository/{repo_name}/storage/{storage_name}": {
+        "/repository/{repo_name}/storage/{storage_name}": {
             "post": {
                 "description": "Associate a storage with a backup repository by their names",
                 "tags": [
@@ -315,24 +231,6 @@ const docTemplate = `{
                         "description": "Success response",
                         "schema": {
                             "$ref": "#/definitions/server.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
                         }
                     },
                     "404": {
@@ -378,24 +276,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.SuccessResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -411,7 +291,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/storage/": {
+        "/storage/": {
             "get": {
                 "description": "Get all storage configurations",
                 "produces": [
@@ -428,80 +308,6 @@ const docTemplate = `{
                             "items": {}
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create a new storage configuration",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "storages"
-                ],
-                "summary": "Create storage",
-                "parameters": [
-                    {
-                        "description": "Storage configuration to create",
-                        "name": "storage",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/storage.BaseStorage"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success response",
-                        "schema": {
-                            "$ref": "#/definitions/server.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -511,7 +317,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/storage/{storage_name}": {
+        "/storage/{storage_conf}": {
             "get": {
                 "description": "Get the storage configuration by its name",
                 "produces": [
@@ -525,7 +331,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Name of the storage",
-                        "name": "storage_name",
+                        "name": "storage_conf",
                         "in": "path",
                         "required": true
                     }
@@ -534,24 +340,6 @@ const docTemplate = `{
                     "200": {
                         "description": "Storage configuration",
                         "schema": {}
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -580,7 +368,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Name of the storage",
-                        "name": "storage_name",
+                        "name": "storage_conf",
                         "in": "path",
                         "required": true
                     }
@@ -592,20 +380,58 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.SuccessResponse"
                         }
                     },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/storage/{storage_type}": {
+            "post": {
+                "description": "Create a new storage configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "Create storage",
+                "parameters": [
+                    {
+                        "enum": [
+                            "s3"
+                        ],
+                        "type": "string",
+                        "description": "Storage type (s3)",
+                        "name": "storage_type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Storage configuration to create",
+                        "name": "storage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/storage.S3Storage"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success response",
+                        "schema": {
+                            "$ref": "#/definitions/server.SuccessResponse"
+                        }
+                    },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "type": "string"
                         }
@@ -660,17 +486,28 @@ const docTemplate = `{
                 }
             }
         },
-        "storage.BaseStorage": {
-            "type": "object"
-        },
-        "storage.StorageType": {
-            "type": "string",
-            "enum": [
-                "s3"
-            ],
-            "x-enum-varnames": [
-                "S3StorageType"
-            ]
+        "storage.S3Storage": {
+            "type": "object",
+            "properties": {
+                "access_key": {
+                    "type": "string"
+                },
+                "bucket_name": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "secret_key": {
+                    "type": "string"
+                }
+            }
         }
     }
 }`

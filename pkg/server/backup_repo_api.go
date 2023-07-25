@@ -18,16 +18,9 @@ import (
 // @Param backupRepo body backuprepo.BackupRepo true "Backup repository data"
 // @Success 200 {object} SuccessResponse "Success response"“
 // @Failure 400 {string} string "Invalid request body"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository [post]
+// @Router /repository [post]
 func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var backupRepo *backuprepo.BackupRepo
 	err := json.NewDecoder(r.Body).Decode(&backupRepo)
 	if err != nil {
@@ -77,16 +70,17 @@ func (a *APIHandler) HandleCreateBackupRepo(w http.ResponseWriter, r *http.Reque
 // @Produce json
 // @Param repo_name path string true "Name of the backup repository to retrieve"
 // @Success 200 {object} backuprepo.BackupRepo "Backup repository data"
-// @Failure 400 {string} string "Invalid request parameters"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 404 {string} string "Backup repository not found"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository/{repo_name} [get]
+// @Router /repository/{repo_name} [get]
 func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "repo_name")
 
 	backupRepo := a.backupRepoManager.GetBackupRepo(name)
+	if backupRepo == nil {
+		http.Error(w, "Backup repository not found", http.StatusNotFound)
+		return
+	}
 
 	response, err := json.Marshal(backupRepo)
 	if err != nil {
@@ -105,10 +99,8 @@ func (a *APIHandler) HandleGetBackupRepoByName(w http.ResponseWriter, r *http.Re
 // @Accept json
 // @Produce json
 // @Success 200 {array} backuprepo.BackupRepo "List of backup repositories"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository [get]
+// @Router /repository [get]
 func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request) {
 
 	backupRepos := a.backupRepoManager.GetAllBackupRepos()
@@ -129,11 +121,8 @@ func (a *APIHandler) HandleGetBackupRepos(w http.ResponseWriter, r *http.Request
 // @Tags backup-repositories
 // @Param repo_name path string true "Name of the backup repository to delete"
 // @Success 200 {object} SuccessResponse "Success response"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository/{repo_name} [delete]
+// @Router /repository/{repo_name} [delete]
 func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "repo_name")
 
@@ -165,12 +154,8 @@ func (a *APIHandler) HandleDeleteBackupRepo(w http.ResponseWriter, r *http.Reque
 // @Tags backup-repositories
 // @Param repo_name path string true "Name of the backup repository"
 // @Success 200 {array} storage.Storage "List of storages associated with the backup repository"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
-// @Failure 404 {string} string "Not Found"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository/{repo_name}/storage/ [get]
+// @Router /repository/{repo_name}/storage/ [get]
 func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name from the URL/query parameters
 	name := chi.URLParam(r, "repo_name")
@@ -200,12 +185,9 @@ func (a *APIHandler) HandleGetBackupRepoStorages(w http.ResponseWriter, r *http.
 // @Param repo_name path string true "Name of the backup repository"
 // @Param storage_name path string true "Name of the storage"
 // @Success 200 {object} SuccessResponse "Success response"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 404 {string} string "Not Found"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository/{repo_name}/storage/{storage_name} [post]
+// @Router /repository/{repo_name}/storage/{storage_name} [post]
 func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
 	repoName := chi.URLParam(r, "repo_name")
@@ -255,12 +237,9 @@ func (a *APIHandler) HandleAddBackupRepoStorage(w http.ResponseWriter, r *http.R
 // @Param repo_name path string true "Name of the backup repository"
 // @Param storage_name path string true "Name of the storage"
 // @Success 200 {object} SuccessResponse "Success response"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 404 {string} string "Not Found"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/repository/{repo_name}/storage/{storage_name} [delete]
+// @Router /repository/{repo_name}/storage/{storage_name} [delete]
 func (a *APIHandler) HandleRemoveBackupRepoStorage(w http.ResponseWriter, r *http.Request) {
 	// Get the repository name and storage name from the URL/query parameters
 	repoName := chi.URLParam(r, "repo_name")

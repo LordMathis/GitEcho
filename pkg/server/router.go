@@ -55,9 +55,9 @@ func SetupRouter(apiHandler *APIHandler) *chi.Mux {
 		})
 
 		r.Route("/storage", func(r chi.Router) {
-			r.Post("/", apiHandler.HandleCreateStorage)
 			r.Get("/", apiHandler.HandleGetStorages)
-			r.Route("/{storage_name}", func(r chi.Router) {
+			r.Route("/{storage_conf}", func(r chi.Router) {
+				r.Post("/", apiHandler.HandleCreateStorage)
 				r.Get("/", apiHandler.HandleGetStorageByName)
 				r.Delete("/", apiHandler.HandleDeleteStorage)
 			})

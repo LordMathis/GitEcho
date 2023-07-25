@@ -13,33 +13,30 @@ import (
 // @Tags storages
 // @Accept json
 // @Produce json
-// @Param storage body storage.BaseStorage true "Storage configuration to create"
+// @Param storage_type path string true "Storage type (s3)" Enums(s3)
+// @Param storage body storage.S3Storage true "Storage configuration to create"
 // @Success 200 {object} SuccessResponse "Success response"
 // @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/storage/ [post]
+// @Router /storage/{storage_type} [post]
 func (a *APIHandler) HandleCreateStorage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
+	storageType := chi.URLParam(r, "storage_conf")
+
+	var stor storage.Storage
+
+	switch storageType {
+	case "s3":
+		var s3Storage storage.S3Storage
+		err := json.NewDecoder(r.Body).Decode(&s3Storage)
+		if err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		s3Storage.InitializeS3Storage()
+		stor = &s3Storage
 	}
 
-	var baseStorage storage.BaseStorage
-	err := json.NewDecoder(r.Body).Decode(&baseStorage)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	stor, err := storage.CreateStorage(baseStorage)
-	if err != nil {
-		http.Error(w, "Failed to create storage", http.StatusInternalServerError)
-		return
-	}
-
-	err = a.db.InsertOrUpdateStorage(stor)
+	err := a.db.InsertOrUpdateStorage(stor)
 	if err != nil {
 		http.Error(w, "Failed to save storage configuration", http.StatusInternalServerError)
 		return
@@ -65,17 +62,14 @@ func (a *APIHandler) HandleCreateStorage(w http.ResponseWriter, r *http.Request)
 // @Summary Get storage by name
 // @Description Get the storage configuration by its name
 // @Tags storages
-// @Param storage_name path string true "Name of the storage"
+// @Param storage_conf path string true "Name of the storage"
 // @Produce json
 // @Success 200 {object} storage.Storage "Storage configuration"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 404 {string} string "Not Found"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/storage/{storage_name} [get]
+// @Router /storage/{storage_conf} [get]
 func (a *APIHandler) HandleGetStorageByName(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "storage_name")
+	name := chi.URLParam(r, "storage_conf")
 
 	stor := a.storageManager.GetStorage(name)
 	if stor == nil {
@@ -97,11 +91,8 @@ func (a *APIHandler) HandleGetStorageByName(w http.ResponseWriter, r *http.Reque
 // @Tags storages
 // @Produce json
 // @Success 200 {array} storage.Storage "List of all storage configurations"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/storage/ [get]
+// @Router /storage/ [get]
 func (a *APIHandler) HandleGetStorages(w http.ResponseWriter, r *http.Request) {
 
 	stors := a.storageManager.GetAllStorages()
@@ -119,16 +110,13 @@ func (a *APIHandler) HandleGetStorages(w http.ResponseWriter, r *http.Request) {
 // @Summary Delete storage
 // @Description Delete the storage configuration by its name
 // @Tags storages
-// @Param storage_name path string true "Name of the storage"
+// @Param storage_conf path string true "Name of the storage"
 // @Produce json
 // @Success 200 {object} SuccessResponse "Success response"
-// @Failure 400 {string} string "Bad Request"
-// @Failure 401 {string} string "Unauthorized"
-// @Failure 403 {string} string "Forbidden"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /api/v1/storage/{storage_name} [delete]
+// @Router /storage/{storage_conf} [delete]
 func (a *APIHandler) HandleDeleteStorage(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "storage_name")
+	name := chi.URLParam(r, "storage_conf")
 
 	err := a.db.DeleteStorage(name)
 	if err != nil {

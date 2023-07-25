@@ -1,6 +1,9 @@
 package storage
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Storage interface {
 	UploadDirectory(directoryPath string) error
@@ -12,9 +15,9 @@ type Storage interface {
 type StorageType string
 
 type BaseStorage struct {
-	Name string      `json:"name" db:"name"`
-	Type StorageType `json:"type" db:"type"`
-	Data string      `json:"data" db:"data"`
+	Name string          `json:"name" db:"name"`
+	Type StorageType     `json:"type" db:"type"`
+	Data json.RawMessage `json:"data" db:"data"`
 }
 
 const S3StorageType StorageType = "s3"

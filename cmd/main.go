@@ -100,6 +100,7 @@ func initializeBackupRepoManager(db *database.Database, sm *storage.StorageManag
 	}
 
 	for _, repo := range repos {
+		repo.InitializeRepo()
 		backupRepoManager.AddBackupRepo(repo)
 		storageNames, err := db.GetBackupRepoStorageNames(repo.Name)
 		if err != nil {

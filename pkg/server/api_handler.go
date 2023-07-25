@@ -28,3 +28,7 @@ func NewAPIHandler(db *database.Database, bm *backuprepo.BackupRepoManager, sm *
 		staticDir:         filepath.Join(templatesDir, "static"),
 	}
 }
+
+type SuccessResponse struct {
+	Message string `json:"message"`
+}

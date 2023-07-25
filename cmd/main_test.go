@@ -79,18 +79,10 @@ func TestIntegration(t *testing.T) {
 	err = waitServerReady("http://127.0.0.1:8080/api/v1/repository", 100*time.Second)
 	assert.NoError(t, err)
 
-	s3storageData, err := json.Marshal(testStorage)
+	s3storage, err := json.Marshal(testStorage)
 	assert.NoError(t, err)
 
-	s3Storage := &storage.BaseStorage{
-		Name: "test-storage",
-		Type: storage.S3StorageType,
-		Data: string(s3storageData),
-	}
-	jsonStorage, err := json.Marshal(s3Storage)
-	assert.NoError(t, err)
-
-	err = sendPostRequest(t, "http://127.0.0.1:8080/api/v1/storage", jsonStorage)
+	err = sendPostRequest(t, fmt.Sprintf("http://127.0.0.1:8080/api/v1/storage/%s", storage.S3StorageType), s3storage)
 	assert.NoError(t, err)
 
 	jsonRepo, err := json.Marshal(testBackupRepo)
@@ -185,11 +177,7 @@ func isS3StorageAvailable() bool {
 
 	// Perform a simple S3 operation to check if Minio is reachable
 	_, err = svc.ListBuckets(nil)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func cleanup() {

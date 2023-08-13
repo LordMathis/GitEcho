@@ -456,10 +456,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "pull_interval": {
-                    "type": "integer"
-                },
                 "remote_url": {
+                    "type": "string"
+                },
+                "schedule": {
                     "type": "string"
                 }
             }

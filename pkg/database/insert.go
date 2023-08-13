@@ -11,10 +11,10 @@ func (db *Database) InsertOrUpdateBackupRepo(backupRepo *backuprepo.BackupRepo) 
 
 	// Prepare the INSERT statement for backup_repo
 	stmtBackupRepo, err := db.PrepareNamed(`
-		INSERT INTO backup_repo (name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path)
-		VALUES (:name, :pull_interval, :local_path, :remote_url, :git_username, :git_password, :git_key_path)
+		INSERT INTO backup_repo (name, schedule, local_path, remote_url, git_username, git_password, git_key_path)
+		VALUES (:name, :schedule, :local_path, :remote_url, :git_username, :git_password, :git_key_path)
 		ON CONFLICT (name) DO UPDATE SET
-			pull_interval = EXCLUDED.pull_interval,
+			schedule = EXCLUDED.schedule,
 			local_path = EXCLUDED.local_path,
 			remote_url = EXCLUDED.remote_url,
 			git_username = EXCLUDED.git_username,

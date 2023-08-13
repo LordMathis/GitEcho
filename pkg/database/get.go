@@ -8,7 +8,7 @@ import (
 func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement to fetch the backup repo
 	stmtBackupRepo, err := db.DB.PrepareNamed(`
-		SELECT name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path
+		SELECT name, schedule, local_path, remote_url, git_username, git_password, git_key_path
 		FROM backup_repo
 		WHERE name = :name
 	`)
@@ -41,7 +41,7 @@ func (db *Database) GetBackupRepoByName(name string) (*backuprepo.BackupRepo, er
 func (db *Database) GetAllBackupRepos() ([]*backuprepo.BackupRepo, error) {
 	// Prepare the SELECT statement to fetch all backup repos
 	stmtBackupRepos, err := db.DB.Preparex(`
-		SELECT name, pull_interval, local_path, remote_url, git_username, git_password, git_key_path
+		SELECT name, schedule, local_path, remote_url, git_username, git_password, git_key_path
 		FROM backup_repo
 	`)
 	if err != nil {

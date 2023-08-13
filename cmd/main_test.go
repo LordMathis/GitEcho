@@ -26,9 +26,9 @@ import (
 )
 
 var testBackupRepo *backuprepo.BackupRepo = &backuprepo.BackupRepo{
-	Name:         "test-repo",
-	RemoteURL:    "https://github.com/LordMathis/GitEcho",
-	PullInterval: 1,
+	Name:      "test-repo",
+	RemoteURL: "https://github.com/LordMathis/GitEcho",
+	Schedule:  "1",
 	Credentials: backuprepo.Credentials{
 		GitUsername: "",
 		GitPassword: "",

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS storage (
 CREATE TABLE IF NOT EXISTS backup_repo (
   id SERIAL PRIMARY KEY,
   name TEXT UNIQUE NOT NULL,
-  pull_interval INT NOT NULL,
+  schedule INT NOT NULL,
   local_path TEXT NOT NULL,
   remote_url TEXT NOT NULL,
   git_username TEXT,

@@ -1,9 +1,7 @@
 package backuprepo
 
 import (
-	"errors"
 	"fmt"
-	"regexp"
 
 	"github.com/go-git/go-git/v5"
 
@@ -13,13 +11,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string                     `json:"name" db:"name"`
-	SrcRepo      *git.Repository            `json:"-"`
-	RemoteURL    string                     `json:"remote_url" db:"remote_url"`
-	PullInterval int                        `json:"pull_interval" db:"pull_interval"`
-	Storages     map[string]storage.Storage `json:"-"`
-	LocalPath    string                     `json:"-" db:"local_path"`
-	Credentials  `json:"credentials"`
+	Name        string                     `json:"name" db:"name"`
+	SrcRepo     *git.Repository            `json:"-"`
+	RemoteURL   string                     `json:"remote_url" db:"remote_url"`
+	Schedule    string                     `json:"schedule" db:"schedule"`
+	Storages    map[string]storage.Storage `json:"-"`
+	LocalPath   string                     `json:"-" db:"local_path"`
+	Credentials `json:"credentials"`
 }
 
 type Credentials struct {
@@ -96,23 +94,23 @@ func (b *BackupRepo) InitializeStorages() {
 	b.Storages = make(map[string]storage.Storage)
 }
 
-func ValidateBackupRepo(backupRepo BackupRepo) error {
-	// Define regular expression patterns for validation
-	namePattern := `^[a-zA-Z0-9_-]+$`
-	// s3URLPattern := `^https?://.+`
+// func ValidateBackupRepo(backupRepo BackupRepo) error {
+// 	// Define regular expression patterns for validation
+// 	namePattern := `^[a-zA-Z0-9_-]+$`
+// 	// s3URLPattern := `^https?://.+`
 
-	// Validate the Name field
-	if backupRepo.Name == "" {
-		return errors.New("name field is required")
-	}
-	if matched, _ := regexp.MatchString(namePattern, backupRepo.Name); !matched {
-		return errors.New("name field must consist of alphanumeric characters, hyphens, and underscores only")
-	}
+// 	// Validate the Name field
+// 	if backupRepo.Name == "" {
+// 		return errors.New("name field is required")
+// 	}
+// 	if matched, _ := regexp.MatchString(namePattern, backupRepo.Name); !matched {
+// 		return errors.New("name field must consist of alphanumeric characters, hyphens, and underscores only")
+// 	}
 
-	// Validate the PullInterval field
-	if backupRepo.PullInterval <= 0 {
-		return errors.New("pullInterval field must be a positive integer")
-	}
+// 	// Validate the PullInterval field
+// 	if backupRepo.PullInterval <= 0 {
+// 		return errors.New("pullInterval field must be a positive integer")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

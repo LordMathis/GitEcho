@@ -49,7 +49,7 @@ func TestUploadDirectory(t *testing.T) {
 	sess, err := session.NewSession()
 	assert.NoError(t, err)
 
-	s3Storage := &storage.S3Storage{
+	s3Storage := &storage.S3StorageConfig{
 		Session:    sess,
 		BucketName: "test-bucket",
 		S3Client:   mockS3Client,
@@ -95,7 +95,7 @@ func TestDownloadDirectory(t *testing.T) {
 		return object, nil
 	}
 
-	s3Storage := &storage.S3Storage{
+	s3Storage := &storage.S3StorageConfig{
 		Session:    nil,
 		BucketName: "test-bucket",
 		S3Client:   mockS3Client,

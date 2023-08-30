@@ -2,8 +2,6 @@ package backuprepo
 
 import (
 	"sync"
-
-	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 type BackupRepoManager struct {
@@ -49,18 +47,4 @@ func (bm *BackupRepoManager) GetAllBackupRepos() []*BackupRepo {
 	}
 
 	return repos
-}
-
-func (bm *BackupRepoManager) AddStorage(repo_name string, storage storage.Storage) {
-	bm.mutex.Lock()
-	defer bm.mutex.Unlock()
-
-	bm.repositories[repo_name].AddStorage(storage)
-}
-
-func (bm *BackupRepoManager) RemoveStorage(repo_name, storage_name string) {
-	bm.mutex.Lock()
-	defer bm.mutex.Unlock()
-
-	bm.repositories[repo_name].RemoveStorage(storage_name)
 }

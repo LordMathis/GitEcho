@@ -13,22 +13,18 @@ import (
 
 // BackupDispatcher is responsible for managing the backup process for multiple repositories.
 type BackupScheduler struct {
-	bm           *backuprepo.BackupRepoManager
 	mutex        sync.RWMutex
 	stopChan     chan struct{}
 	stopChannels map[string]chan chan<- bool
-	addRepoChan  chan *backuprepo.BackupRepo
 	wg           sync.WaitGroup
 	cron         *gocron.Scheduler
 }
 
 // NewBackupDispatcher creates a new BackupDispatcher instance.
-func NewBackupScheduler(bm *backuprepo.BackupRepoManager) *BackupScheduler {
+func NewBackupScheduler() *BackupScheduler {
 	return &BackupScheduler{
-		bm:           bm,
 		mutex:        sync.RWMutex{},
 		stopChannels: make(map[string]chan chan<- bool),
-		addRepoChan:  make(chan *backuprepo.BackupRepo),
 		cron:         gocron.NewScheduler(time.UTC),
 	}
 }
@@ -38,10 +34,6 @@ func (d *BackupScheduler) Start() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		for _, repo := range d.bm.GetAllBackupRepos() {
-			d.ScheduleBackup(repo)
-		}
-
 		d.cron.StartAsync()
 		<-d.stopChan
 		d.cron.Stop()

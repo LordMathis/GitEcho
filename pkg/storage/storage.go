@@ -8,6 +8,7 @@ type Storage interface {
 }
 
 type BaseStorage struct {
+	Storage
 	Name   string  `yaml:"name"`
 	Type   string  `yaml:"type"`
 	Config Storage `yaml:"config"`
@@ -39,6 +40,7 @@ func (b *BaseStorage) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 
+		c.Config.InitializeS3Storage()
 		b.Config = c.Config
 	}
 

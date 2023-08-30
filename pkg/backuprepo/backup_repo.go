@@ -5,33 +5,44 @@ import (
 
 	"github.com/go-git/go-git/v5"
 
-	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 type BackupRepo struct {
-	Name        string                     `json:"name" db:"name"`
-	SrcRepo     *git.Repository            `json:"-"`
-	RemoteURL   string                     `json:"remote_url" db:"remote_url"`
-	Schedule    string                     `json:"schedule" db:"schedule"`
-	Storages    map[string]storage.Storage `json:"-"`
-	LocalPath   string                     `json:"-" db:"local_path"`
-	Credentials `json:"credentials"`
+	Name         string                 `yaml:"name"`
+	SrcRepo      *git.Repository        `yaml:"-"`
+	RemoteURL    string                 `yaml:"remote_url"`
+	Schedule     string                 `yaml:"schedule"`
+	StorageNames []string               `yaml:"sorage_names"`
+	Storages     []*storage.BaseStorage `yaml:"-"`
+	LocalPath    string                 `yaml:"-"`
+	Credentials  `yaml:"credentials"`
 }
 
 type Credentials struct {
-	GitUsername string `json:"username" db:"git_username"`
-	GitPassword string `json:"password" db:"git_password"`
-	GitKeyPath  string `json:"key_path" db:"git_key_path"`
+	GitUsername string `yaml:"username"`
+	GitPassword string `yaml:"password"`
+	GitKeyPath  string `yaml:"key_path"`
 }
 
-func (b *BackupRepo) AddStorage(storage storage.Storage) {
-	b.Storages[storage.GetName()] = storage
-}
+func (b *BackupRepo) BackupAndUpload() error {
+	gitclient := gitutil.NewGitClient(b.Credentials.GitUsername, b.Credentials.GitPassword, b.Credentials.GitKeyPath)
+	err := gitclient.PullChanges(b.SrcRepo)
+	if err != nil {
+		return err
+	}
 
-func (b *BackupRepo) RemoveStorage(storage_name string) {
-	delete(b.Storages, storage_name)
+	// Upload the local directory to S3
+	for _, stor := range b.Storages {
+
+		err := stor.UploadDirectory(b.LocalPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (b *BackupRepo) InitializeRepo() error {
@@ -55,43 +66,6 @@ func (b *BackupRepo) InitializeRepo() error {
 
 	b.SrcRepo = repo
 	return nil
-}
-
-func (b *BackupRepo) BackupAndUpload() error {
-	gitclient := gitutil.NewGitClient(b.Credentials.GitUsername, b.Credentials.GitPassword, b.Credentials.GitKeyPath)
-	err := gitclient.PullChanges(b.SrcRepo)
-	if err != nil {
-		return err
-	}
-
-	// Upload the local directory to S3
-	for _, stor := range b.Storages {
-
-		err := stor.UploadDirectory(b.LocalPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (b *BackupRepo) DecryptCredentials() error {
-
-	password := b.GitPassword
-	if password != "" {
-		decryptedPassword, err := encryption.Decrypt([]byte(password))
-		if err != nil {
-			return err
-		}
-		b.GitPassword = string(decryptedPassword)
-	}
-
-	return nil
-}
-
-func (b *BackupRepo) InitializeStorages() {
-	b.Storages = make(map[string]storage.Storage)
 }
 
 // func ValidateBackupRepo(backupRepo BackupRepo) error {

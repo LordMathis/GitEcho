@@ -25,7 +25,7 @@ type S3StorageConfig struct {
 	ForcePathStyle bool             `yaml:"force_path_style"`
 }
 
-func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {
+func getSession(endpoint, region, accessKey, secretKey string, disableSSL, forcePathStyle bool) (*session.Session, error) {
 	config := &aws.Config{}
 
 	if endpoint != "" {
@@ -42,9 +42,8 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 		config.Credentials = credentials.NewStaticCredentials(accessKey, secretKey, "")
 	}
 
-	// TODO: Parse this info from JSON
-	config.DisableSSL = aws.Bool(true)
-	config.S3ForcePathStyle = aws.Bool(true)
+	config.DisableSSL = aws.Bool(disableSSL)
+	config.S3ForcePathStyle = aws.Bool(forcePathStyle)
 
 	sess, err := session.NewSession(config)
 	if err != nil {
@@ -54,8 +53,8 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func (s *S3StorageConfig) InitializeS3Storage() error {
-	session, err := getSession(s.Endpoint, s.Region, s.AccessKey, s.SecretKey)
+func (s *S3StorageConfig) Initialize() error {
+	session, err := getSession(s.Endpoint, s.Region, s.AccessKey, s.SecretKey, s.DisableSSL, s.ForcePathStyle)
 	if err != nil {
 		return err
 	}
@@ -70,8 +69,9 @@ func (s *S3StorageConfig) InitializeS3Storage() error {
 
 func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 
+	parent := filepath.Dir(directoryPath)
+
 	// WalkDir through the directory recursively
-	basePath := os.Getenv("GITECHO_DATA_PATH")
 	err := filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -90,7 +90,7 @@ func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 		defer f.Close()
 
 		// Prepare the S3 object key by preserving the directory structure
-		relPath, err := filepath.Rel(basePath, path)
+		relPath, err := filepath.Rel(parent, path)
 		if err != nil {
 			return err
 		}

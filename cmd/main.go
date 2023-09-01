@@ -26,15 +26,13 @@ func main() {
 
 	for _, repo := range config.Repositories {
 
-		repo.Storages = make([]*storage.BaseStorage, len(repo.StorageNames))
+		repo.Storages = make([]storage.Storage, len(repo.StorageNames))
 
 		for i, storageName := range repo.StorageNames {
 			stor := config.Storages[storageName]
-			repo.Storages[i] = stor
+			repo.Storages[i] = stor.Config
 		}
 
-		repo.LocalPath = config.DataPath + "/" + repo.Name
-		repo.InitializeRepo()
 		scheduler.ScheduleBackup(repo)
 	}
 

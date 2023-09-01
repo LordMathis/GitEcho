@@ -7,7 +7,11 @@ repositories:
       - test-storage
 storages:
   - name: test-storage
-    endpoint:   "http://127.0.0.1:9000"
-    access_key:  gitecho
-    secret_key:  gitechokey
-    bucket_name: gitecho
+    type: s3
+    config:
+      endpoint:   "http://127.0.0.1:9000"
+      access_key:  gitecho
+      secret_key:  gitechokey
+      bucket_name: gitecho
+      disable_ssl: true
+      force_path_style: true

@@ -3,21 +3,21 @@ package config
 import (
 	"os"
 
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/repository"
 	"github.com/LordMathis/GitEcho/pkg/storage"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	DataPath     string                            `yaml:"data_path"`
-	Repositories map[string]*backuprepo.BackupRepo `yaml:"repositories"`
+	Repositories map[string]*repository.BackupRepo `yaml:"repositories"`
 	Storages     map[string]*storage.BaseStorage   `yaml:"storages"`
 }
 
 func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 	var t struct {
 		DataPath     string                   `yaml:"data_path"`
-		Repositories []*backuprepo.BackupRepo `yaml:"repositories"`
+		Repositories []*repository.BackupRepo `yaml:"repositories"`
 		Storages     []*storage.BaseStorage   `yaml:"storages"`
 	}
 
@@ -27,15 +27,19 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 	}
 
 	c.DataPath = t.DataPath
-	c.Repositories = make(map[string]*backuprepo.BackupRepo)
+	c.Repositories = make(map[string]*repository.BackupRepo)
 	c.Storages = make(map[string]*storage.BaseStorage)
 
 	for _, repo := range t.Repositories {
+		repo.LocalPath = c.DataPath + "/" + repo.Name
+		repo.Initialize()
 		c.Repositories[repo.Name] = repo
 	}
 
-	for _, storage := range t.Storages {
-		c.Storages[storage.Name] = storage
+	for _, stor := range t.Storages {
+		a := stor.Config
+		a.Initialize()
+		c.Storages[stor.Name] = stor
 	}
 
 	return nil

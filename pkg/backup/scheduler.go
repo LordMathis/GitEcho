@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/repository"
 
 	"github.com/go-co-op/gocron"
 )
@@ -47,7 +47,7 @@ func (d *BackupScheduler) Stop() {
 	d.wg.Wait()
 }
 
-func (d *BackupScheduler) ScheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) ScheduleBackup(repo *repository.BackupRepo) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -80,7 +80,7 @@ func (d *BackupScheduler) ScheduleBackup(repo *backuprepo.BackupRepo) {
 	}
 }
 
-func (d *BackupScheduler) UnscheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) UnscheduleBackup(repo *repository.BackupRepo) {
 	if stopChan, ok := d.stopChannels[repo.Name]; ok {
 		// Send a signal to stop the backup process
 		close(stopChan)
@@ -88,7 +88,7 @@ func (d *BackupScheduler) UnscheduleBackup(repo *backuprepo.BackupRepo) {
 	}
 }
 
-func (d *BackupScheduler) RescheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) RescheduleBackup(repo *repository.BackupRepo) {
 	d.UnscheduleBackup(repo)
 	d.ScheduleBackup(repo)
 }

@@ -1,4 +1,4 @@
-package backuprepo
+package repository
 
 import (
 	"fmt"
@@ -10,13 +10,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string                 `yaml:"name"`
-	SrcRepo      *git.Repository        `yaml:"-"`
-	RemoteURL    string                 `yaml:"remote_url"`
-	Schedule     string                 `yaml:"schedule"`
-	StorageNames []string               `yaml:"sorage_names"`
-	Storages     []*storage.BaseStorage `yaml:"-"`
-	LocalPath    string                 `yaml:"-"`
+	Name         string            `yaml:"name"`
+	SrcRepo      *git.Repository   `yaml:"-"`
+	RemoteURL    string            `yaml:"remote_url"`
+	Schedule     string            `yaml:"schedule"`
+	StorageNames []string          `yaml:"storages"`
+	Storages     []storage.Storage `yaml:"-"`
+	LocalPath    string            `yaml:"-"`
 	Credentials  `yaml:"credentials"`
 }
 
@@ -45,7 +45,7 @@ func (b *BackupRepo) BackupAndUpload() error {
 	return nil
 }
 
-func (b *BackupRepo) InitializeRepo() error {
+func (b *BackupRepo) Initialize() error {
 	gitclient := gitutil.NewGitClient(b.GitUsername, b.GitPassword, b.GitKeyPath)
 	repo, err := gitclient.OpenRepository(b.LocalPath)
 
@@ -71,12 +71,12 @@ func (b *BackupRepo) InitializeRepo() error {
 // func ValidateBackupRepo(backupRepo BackupRepo) error {
 // 	// Define regular expression patterns for validation
 // 	namePattern := `^[a-zA-Z0-9_-]+$`
-// 	// s3URLPattern := `^https?://.+`
 
 // 	// Validate the Name field
 // 	if backupRepo.Name == "" {
 // 		return errors.New("name field is required")
 // 	}
+
 // 	if matched, _ := regexp.MatchString(namePattern, backupRepo.Name); !matched {
 // 		return errors.New("name field must consist of alphanumeric characters, hyphens, and underscores only")
 // 	}

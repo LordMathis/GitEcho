@@ -6,29 +6,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LordMathis/GitEcho/pkg/backuprepo"
+	"github.com/LordMathis/GitEcho/pkg/repository"
 
 	"github.com/go-co-op/gocron"
 )
 
 // BackupDispatcher is responsible for managing the backup process for multiple repositories.
 type BackupScheduler struct {
-	bm           *backuprepo.BackupRepoManager
 	mutex        sync.RWMutex
 	stopChan     chan struct{}
 	stopChannels map[string]chan chan<- bool
-	addRepoChan  chan *backuprepo.BackupRepo
 	wg           sync.WaitGroup
 	cron         *gocron.Scheduler
 }
 
 // NewBackupDispatcher creates a new BackupDispatcher instance.
-func NewBackupScheduler(bm *backuprepo.BackupRepoManager) *BackupScheduler {
+func NewBackupScheduler() *BackupScheduler {
 	return &BackupScheduler{
-		bm:           bm,
 		mutex:        sync.RWMutex{},
 		stopChannels: make(map[string]chan chan<- bool),
-		addRepoChan:  make(chan *backuprepo.BackupRepo),
 		cron:         gocron.NewScheduler(time.UTC),
 	}
 }
@@ -38,10 +34,6 @@ func (d *BackupScheduler) Start() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		for _, repo := range d.bm.GetAllBackupRepos() {
-			d.ScheduleBackup(repo)
-		}
-
 		d.cron.StartAsync()
 		<-d.stopChan
 		d.cron.Stop()
@@ -55,7 +47,7 @@ func (d *BackupScheduler) Stop() {
 	d.wg.Wait()
 }
 
-func (d *BackupScheduler) ScheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) ScheduleBackup(repo *repository.BackupRepo) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -88,7 +80,7 @@ func (d *BackupScheduler) ScheduleBackup(repo *backuprepo.BackupRepo) {
 	}
 }
 
-func (d *BackupScheduler) UnscheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) UnscheduleBackup(repo *repository.BackupRepo) {
 	if stopChan, ok := d.stopChannels[repo.Name]; ok {
 		// Send a signal to stop the backup process
 		close(stopChan)
@@ -96,7 +88,7 @@ func (d *BackupScheduler) UnscheduleBackup(repo *backuprepo.BackupRepo) {
 	}
 }
 
-func (d *BackupScheduler) RescheduleBackup(repo *backuprepo.BackupRepo) {
+func (d *BackupScheduler) RescheduleBackup(repo *repository.BackupRepo) {
 	d.UnscheduleBackup(repo)
 	d.ScheduleBackup(repo)
 }

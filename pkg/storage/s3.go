@@ -1,13 +1,11 @@
 package storage
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -15,18 +13,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
 
-type S3Storage struct {
-	Session    *session.Session `json:"-"`
-	S3Client   s3iface.S3API    `json:"-"`
-	Name       string           `json:"name"`
-	Endpoint   string           `json:"endpoint"`
-	Region     string           `json:"region"`
-	AccessKey  string           `json:"access_key"`
-	SecretKey  string           `json:"secret_key"`
-	BucketName string           `json:"bucket_name"`
+type S3StorageConfig struct {
+	Session        *session.Session `yaml:"-"`
+	S3Client       s3iface.S3API    `yaml:"-"`
+	Endpoint       string           `yaml:"endpoint"`
+	Region         string           `yaml:"region"`
+	AccessKey      string           `yaml:"access_key"`
+	SecretKey      string           `yaml:"secret_key"`
+	BucketName     string           `yaml:"bucket_name"`
+	DisableSSL     bool             `yaml:"disable_ssl"`
+	ForcePathStyle bool             `yaml:"force_path_style"`
 }
 
-func getSession(endpoint, region, accessKey, secretKey string) (*session.Session, error) {
+func getSession(endpoint, region, accessKey, secretKey string, disableSSL, forcePathStyle bool) (*session.Session, error) {
 	config := &aws.Config{}
 
 	if endpoint != "" {
@@ -43,9 +42,8 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 		config.Credentials = credentials.NewStaticCredentials(accessKey, secretKey, "")
 	}
 
-	// TODO: Parse this info from JSON
-	config.DisableSSL = aws.Bool(true)
-	config.S3ForcePathStyle = aws.Bool(true)
+	config.DisableSSL = aws.Bool(disableSSL)
+	config.S3ForcePathStyle = aws.Bool(forcePathStyle)
 
 	sess, err := session.NewSession(config)
 	if err != nil {
@@ -55,26 +53,8 @@ func getSession(endpoint, region, accessKey, secretKey string) (*session.Session
 	return sess, nil
 }
 
-func NewS3StorageFromBase(baseStorage BaseStorage) (*S3Storage, error) {
-
-	var s3Storage S3Storage
-	err := json.Unmarshal([]byte(baseStorage.Data), &s3Storage)
-	if err != nil {
-		return nil, err
-	}
-
-	s3Storage.Name = baseStorage.Name
-
-	err = s3Storage.InitializeS3Storage()
-	if err != nil {
-		return nil, err
-	}
-
-	return &s3Storage, nil
-}
-
-func (s *S3Storage) InitializeS3Storage() error {
-	session, err := getSession(s.Endpoint, s.Region, s.AccessKey, s.SecretKey)
+func (s *S3StorageConfig) Initialize() error {
+	session, err := getSession(s.Endpoint, s.Region, s.AccessKey, s.SecretKey, s.DisableSSL, s.ForcePathStyle)
 	if err != nil {
 		return err
 	}
@@ -87,70 +67,11 @@ func (s *S3Storage) InitializeS3Storage() error {
 	return nil
 }
 
-func MarshalS3Storage(s3Storage *S3Storage) ([]byte, error) {
+func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 
-	// Encrypt the access key and secret key
-	encryptedAccessKey, err := encryption.Encrypt([]byte(s3Storage.AccessKey))
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedSecretKey, err := encryption.Encrypt([]byte(s3Storage.SecretKey))
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new instance of S3Storage with encrypted keys
-	encryptedS3Storage := &S3Storage{
-		Endpoint:   s3Storage.Endpoint,
-		Region:     s3Storage.Region,
-		AccessKey:  string(encryptedAccessKey),
-		SecretKey:  string(encryptedSecretKey),
-		BucketName: s3Storage.BucketName,
-	}
-
-	// Encode the struct fields as JSON
-	dataJSON, err := json.Marshal(encryptedS3Storage)
-	if err != nil {
-		return nil, err
-	}
-
-	return dataJSON, err
-}
-
-func (s *S3Storage) DecryptKeys() error {
-	// Decrypt the access key and secret key
-	decryptedAccessKey, err := encryption.Decrypt([]byte(s.AccessKey))
-	if err != nil {
-		return err
-	}
-
-	decryptedSecretKey, err := encryption.Decrypt([]byte(s.SecretKey))
-	if err != nil {
-		return err
-	}
-
-	// Update the access key and secret key with the decrypted values
-	s.AccessKey = string(decryptedAccessKey)
-	s.SecretKey = string(decryptedSecretKey)
-
-	return nil
-}
-
-func (s *S3Storage) GetName() string {
-	return s.Name
-}
-
-func (s *S3Storage) GetType() StorageType {
-	return S3StorageType
-}
-
-// UploadDirectory uploads the files in the specified directory (including subdirectories) to an S3 storage bucket.
-// If a file already exists in the remote storage, it will be overwritten.
-func (s *S3Storage) UploadDirectory(directoryPath string) error {
+	parent := filepath.Dir(directoryPath)
 
 	// WalkDir through the directory recursively
-	basePath := os.Getenv("GITECHO_DATA_PATH")
 	err := filepath.WalkDir(directoryPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -169,7 +90,7 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 		defer f.Close()
 
 		// Prepare the S3 object key by preserving the directory structure
-		relPath, err := filepath.Rel(basePath, path)
+		relPath, err := filepath.Rel(parent, path)
 		if err != nil {
 			return err
 		}
@@ -195,7 +116,7 @@ func (s *S3Storage) UploadDirectory(directoryPath string) error {
 	return err
 }
 
-func (s *S3Storage) DownloadDirectory(remotePath, localPath string) error {
+func (s *S3StorageConfig) DownloadDirectory(remotePath, localPath string) error {
 	params := &s3.ListObjectsV2Input{
 		Bucket: aws.String(s.BucketName),
 		Prefix: aws.String(remotePath),
@@ -235,7 +156,7 @@ func (s *S3Storage) DownloadDirectory(remotePath, localPath string) error {
 	return nil
 }
 
-func (s *S3Storage) downloadFile(s3Key, filePath string) error {
+func (s *S3StorageConfig) downloadFile(s3Key, filePath string) error {
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(s3Key),

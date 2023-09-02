@@ -1,41 +1,62 @@
 package storage
 
 import (
-	"encoding/json"
-	"fmt"
+	"gopkg.in/yaml.v3"
 )
 
-type Storage interface {
+type Uploader interface {
 	UploadDirectory(directoryPath string) error
-	DownloadDirectory(remotePath, localPath string) error
-	GetName() string
-	GetType() StorageType
 }
 
-type StorageType string
+type Downloader interface {
+	DownloadDirectory(remotePath, localPath string) error
+}
+
+type Initializer interface {
+	Initialize() error
+}
+
+type Storage interface {
+	Uploader
+	Downloader
+	Initializer
+}
 
 type BaseStorage struct {
-	Name string          `json:"name" db:"name"`
-	Type StorageType     `json:"type" db:"type"`
-	Data json.RawMessage `json:"data" db:"data"`
+	Name   string  `yaml:"name"`
+	Type   string  `yaml:"type"`
+	Config Storage `yaml:"config"`
 }
 
-const S3StorageType StorageType = "s3"
+func (b *BaseStorage) UnmarshalYAML(value *yaml.Node) error {
 
-func CreateStorage(baseStorage BaseStorage) (Storage, error) {
-	var storageInstance Storage
-	var err error
-
-	switch baseStorage.Type {
-	case S3StorageType:
-		storageInstance, err = NewS3StorageFromBase(baseStorage)
-		if err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("unknown storage type")
+	var t struct {
+		Name   string    `yaml:"name"`
+		Type   string    `yaml:"type"`
+		Config yaml.Node `yaml:"config"`
 	}
 
-	return storageInstance, nil
+	err := value.Decode(&t)
+	if err != nil {
+		return err
+	}
+
+	b.Name = t.Name
+	b.Type = t.Type
+
+	switch b.Type {
+	case "s3":
+		var c struct {
+			Config S3StorageConfig `yaml:"config"`
+		}
+
+		err := value.Decode(&c)
+		if err != nil {
+			return err
+		}
+
+		b.Config = &c.Config
+	}
+
+	return nil
 }

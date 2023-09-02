@@ -9,82 +9,57 @@
 
 GitEcho is a backup tool for git repositories.
 
-## Features
-
-- Periodically pulls changes from the repositories
-- Uploads the changes to any S3 compatible storage
-- REST API for managing backup configurations
 
 ## Configuration
 
-Configure GitEcho via environment variables
+GiEcho is configured using yaml config file. By default GitEcho looks for `config.yaml` file in the working directory. You can specify path to config file using the `-f` option 
 
-**Set up database**
-
-GitEcho supports postgres and sqlite databases.
-
-```env
-DB_TYPE=sqlite3  # "sqlite3" or "postgres"
-```
-
-1. Sqlite settings
-
-```env
-DB_PATH=./sqlite.db
-```
-
-2. Postgres settings
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=gitecho
-DB_PASSWORD=gitecho
-DB_NAME=gitecho
-```
-
-**Set up data path**
-
-GitEcho clones your repository to data path
+```yaml
+data_path: /data  # Path where GitEcho stores git repositories
+repositories:  # Kist of repositories to backup
+  - name: test-repo  # Unique name of the repository
+    remote_url: "https://github.com/LordMathis/GitEcho"  # Remote git url, either https or ssh
+    schedule:  "*/1 * * * *"  # Backup schedule, supports single number (minutes) or cron syntax
+    storages:  # List of storage names to backup to
+      - test-storage
+    credentials:  # Credentials for git remote. Can be ommited if the repo is public
+      username: gitecho  # git username
+      password: gitecho  # git password
+      key_path: /ssh/id_ed25519.pub  # Path to ssh key for authentication
+storages:
+  - name: test-storage  # Storage name
+    type: s3  # Storage type, currently only s3 is supported
+    config:  # Config for storage type
+      endpoint:   "http://127.0.0.1:9000"  # S3 endpoint
+      region: us-east-1  # AWS region
+      access_key:  gitecho  
+      secret_key:  gitechokey
+      bucket_name: gitecho
+      disable_ssl: true  # Set disable SSL to true if you are using local minio over http
+      force_path_style: true  # Force s3 api path style
 
 ```
-GITECHO_DATA_PATH=./data
-```
 
-**Set up encryption key**
-
-GitEcho must store your git and/or s3 credentials. In order not to store them in plain text in the database it encrypts them. You cen generate a key by running `gitecho -g`
-
-Copy the generated key and put it in `GITECHO_ENCRYPTION_KEY` environment variable. You can also use your own 16, 24 or 32 byte key
-
-**Customize port**
-
-GitEcho runs by default on port 8080. You can override it with `GITECHO_PORT` environment variable
 
 ## Deployment
 
 **As standalone binary**
 
 ```
-go build -o gitecho ./cmd/server
-./gitecho
+go build -o gitecho ./cmd
+./gitecho -f ./config.yaml
 ```
 
 **With docker**
 
 ```
+docker pull ghcr.io/lordmathis/gitecho
+docker run gitecho
+```
+
+or build your own image
+
+```
 docker build -t gitecho .
-docker run -p 8080 gitecho
+docker run gitecho
 ```
-
-**With docker-compose**
-
-Adapt the example `docker-compose.yaml` to your needs and launch it
-
-```
-docker-compose up -d
-```
-
-## Usage
-
-Navigate to `http://localhost:8080`. Add your backup repository configuration. The repository will be backed up every `Pull Interval` minutes

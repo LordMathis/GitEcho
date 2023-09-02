@@ -52,6 +52,10 @@ func ReadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
+	return ParseConfigFile(data)
+}
+
+func ParseConfigFile(data []byte) (*Config, error) {
 	config := &Config{}
 	yaml.Unmarshal(data, &config)
 

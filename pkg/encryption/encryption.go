@@ -5,18 +5,19 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"io"
 )
 
 func GenerateEncryptionKey() (string, error) {
-	key := make([]byte, 32)
+	key := make([]byte, 16) // 16 bytes for a 32-character hexadecimal string
 	_, err := rand.Read(key)
 	if err != nil {
 		return "", err
 	}
-	keyBase64 := base64.StdEncoding.EncodeToString(key)
-	return keyBase64, nil
+
+	hexKey := hex.EncodeToString(key)
+	return hexKey, nil
 }
 
 func EncryptData(input io.Reader, key []byte) (io.Reader, error) {

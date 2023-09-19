@@ -27,7 +27,7 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		fmt.Println("Generated encryption key:", string(key))
+		fmt.Println("Generated encryption key:", key)
 		return
 	}
 

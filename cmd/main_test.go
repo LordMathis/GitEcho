@@ -34,6 +34,9 @@ storages:
     bucket_name: gitecho
     disable_ssl: true
     force_path_style: true
+    encryption:
+      enabled: true
+      key: "12345678901234567890123456789012"
 `
 
 func TestIntegration(t *testing.T) {

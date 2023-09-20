@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 )
 
@@ -78,4 +79,15 @@ func DecryptData(input io.Reader, key []byte) (io.Reader, error) {
 	}
 
 	return bytes.NewReader(plainText), nil
+}
+
+func ValidateEncryptionKey(key []byte) error {
+
+	// Check if the encryption key has the correct size
+	keySize := len(key)
+	if keySize != 16 && keySize != 24 && keySize != 32 {
+		return fmt.Errorf("invalid encryption key size, encryption key must be 16, 24, or 32 bytes in length")
+	}
+
+	return nil
 }

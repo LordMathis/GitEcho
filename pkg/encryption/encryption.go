@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -79,6 +80,53 @@ func DecryptData(input io.Reader, key []byte) (io.Reader, error) {
 	}
 
 	return bytes.NewReader(plainText), nil
+}
+
+func ScrambleString(originalString string, key []byte) (string, error) {
+
+	iv := make([]byte, aes.BlockSize)
+	copy(iv, key[:aes.BlockSize])
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	stream := cipher.NewCTR(block, iv)
+
+	encryptedString := make([]byte, len(originalString))
+	stream.XORKeyStream(encryptedString, []byte(originalString))
+
+	scrambled := hex.EncodeToString(iv) + hex.EncodeToString(encryptedString)
+
+	return scrambled, nil
+}
+
+func UnscrambleString(scrambledString string, key []byte) (string, error) {
+
+	scrambledData, err := hex.DecodeString(scrambledString)
+	if err != nil {
+		return "", err
+	}
+
+	if len(scrambledData) < aes.BlockSize {
+		return "", errors.New("scrambled data is too short")
+	}
+
+	iv := scrambledData[:aes.BlockSize]
+	encryptedString := scrambledData[aes.BlockSize:]
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	stream := cipher.NewCTR(block, iv)
+
+	decryptedString := make([]byte, len(encryptedString))
+	stream.XORKeyStream(decryptedString, encryptedString)
+
+	return string(decryptedString), nil
 }
 
 func ValidateEncryptionKey(key []byte) error {

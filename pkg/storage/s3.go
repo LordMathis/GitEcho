@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -121,18 +119,13 @@ func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 
 			keyParts := strings.SplitN(key, "/", 2)
 
-			encryptedKey, err := encryption.EncryptData(strings.NewReader(keyParts[1]), []byte(s.Encryption.Key))
-			if err != nil {
-				return err
-			}
-
-			encryptedKeySlice, err := io.ReadAll(encryptedKey)
+			encryptedKey, err := encryption.ScrambleString(keyParts[1], []byte(s.Encryption.Key))
 			if err != nil {
 				return err
 			}
 
 			input.Body = aws.ReadSeekCloser(encryptedData)
-			input.Key = aws.String(fmt.Sprintf("%s/%s", keyParts[0], base64.StdEncoding.EncodeToString(encryptedKeySlice)))
+			input.Key = aws.String(fmt.Sprintf("%s/%s", keyParts[0], encryptedKey))
 		}
 
 		// Perform the S3 PutObject operation
@@ -164,24 +157,13 @@ func (s *S3StorageConfig) DownloadDirectory(remotePath, localPath string) error 
 
 					keyParts := strings.SplitN(*obj.Key, "/", 2)
 
-					decodedKey, err := base64.StdEncoding.DecodeString(keyParts[1])
+					decryptedKey, err := encryption.UnscrambleString(keyParts[1], []byte(s.Encryption.Key))
 					if err != nil {
-						fmt.Printf("Failed to decode filepath: %v\n", err)
+						fmt.Printf("Failed to decrypt object key: %v\n", err)
 						continue
 					}
 
-					decryptedKey, err := encryption.DecryptData(bytes.NewReader(decodedKey), []byte(s.Encryption.Key))
-					if err != nil {
-						fmt.Printf("Failed to decrypt filepath: %v\n", err)
-						continue
-					}
-					decryptedKeySlice, err := io.ReadAll(decryptedKey)
-					if err != nil {
-						fmt.Printf("Failed to read decrypted key: %v\n", err)
-						continue
-					}
-
-					remoteRelPath = filepath.Join(keyParts[0], string(decryptedKeySlice))
+					remoteRelPath = filepath.Join(keyParts[0], decryptedKey)
 				}
 
 				relPath, err := filepath.Rel(remotePath, remoteRelPath)

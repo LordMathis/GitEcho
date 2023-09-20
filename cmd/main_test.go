@@ -53,11 +53,11 @@ func TestIntegration(t *testing.T) {
 
 	for _, repo := range config.Repositories {
 
-		repo.Storages = make([]storage.Storage, len(repo.StorageNames))
+		repo.Storages = make(map[string]storage.Storage, len(repo.StorageNames))
 
-		for i, storageName := range repo.StorageNames {
+		for _, storageName := range repo.StorageNames {
 			stor := config.Storages[storageName]
-			repo.Storages[i] = stor.Config
+			repo.Storages[storageName] = stor.Config
 		}
 
 		scheduler.ScheduleBackup(repo)

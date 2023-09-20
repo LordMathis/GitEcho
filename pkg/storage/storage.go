@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"gopkg.in/yaml.v3"
 )
 
@@ -55,7 +56,15 @@ func (b *BaseStorage) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 
+		if c.Config.Encryption.Enabled {
+			err = encryption.ValidateEncryptionKey([]byte(c.Config.Encryption.Key))
+			if err != nil {
+				return err
+			}
+		}
+
 		b.Config = &c.Config
+
 	}
 
 	return nil

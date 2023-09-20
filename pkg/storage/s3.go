@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"gopkg.in/yaml.v3"
 )
 
 type S3StorageConfig struct {
@@ -245,21 +244,6 @@ func (s *S3StorageConfig) downloadFile(s3Key, filePath string) error {
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
-	}
-
-	return nil
-}
-
-func (e *EncryptionConfig) UnmarshalYAML(value *yaml.Node) error {
-
-	err := value.Decode(&e)
-	if err != nil {
-		return err
-	}
-
-	err = encryption.ValidateEncryptionKey([]byte(e.Key))
-	if err != nil {
-		return err
 	}
 
 	return nil

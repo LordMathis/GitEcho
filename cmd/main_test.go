@@ -41,7 +41,13 @@ storages:
 
 func TestIntegration(t *testing.T) {
 
-	config, err := config.ParseConfigFile([]byte(yamlConfig))
+	configPath := "../config.dev.yaml"
+
+	config, err := config.ReadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
+
 	assert.NoError(t, err)
 
 	if !isS3StorageAvailable(config.Storages["test-storage"].Config.(*storage.S3StorageConfig)) {

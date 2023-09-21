@@ -7,7 +7,7 @@
 :warning: **Expect Breaking Changes**
 
 
-GitEcho is a backup tool for git repositories.
+GitEcho is a backup tool for git repositories. It supports s3 storage with client side encryption as a backup target
 
 ## Usage
 

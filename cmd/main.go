@@ -19,8 +19,30 @@ func main() {
 	configPath := flag.String("f", "config.yaml", "Path to the config file")
 	generateKey := flag.Bool("g", false, "Generate encryption key and exit")
 	restore := flag.Bool("r", false, "Restore from backup")
+	help := flag.Bool("h", false, "Print help and exit")
 
 	flag.Parse()
+
+	if *help {
+		flag.Usage = func() {
+			w := flag.CommandLine.Output()
+			fmt.Fprintf(w, "Usage:\n")
+
+			flag.VisitAll(func(f *flag.Flag) {
+				switch f.Name {
+				case "f":
+					fmt.Fprintf(w, "  -f <path> Path to the config file \n")
+				case "r":
+					fmt.Fprintf(w, "  -r <repository_name> <storage_name> <local_path> Restore repository from storage backup to local path\n")
+				default:
+					fmt.Fprintf(w, "  -%v %v\n", f.Name, f.Usage)
+				}
+			})
+
+		}
+		flag.Usage()
+		return
+	}
 
 	if *generateKey {
 		key, err := encryption.GenerateEncryptionKey()

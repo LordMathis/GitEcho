@@ -7,8 +7,16 @@
 :warning: **Expect Breaking Changes**
 
 
-GitEcho is a backup tool for git repositories.
+GitEcho is a backup tool for git repositories. It supports s3 storage with client side encryption as a backup target
 
+## Usage
+
+```
+  -f <path> Path to the config file 
+  -g Generate encryption key and exit
+  -h Print help and exit
+  -r <repository_name> <storage_name> <local_path> Restore repository from storage backup to local path
+```
 
 ## Configuration
 
@@ -37,6 +45,9 @@ storages:
       bucket_name: gitecho
       disable_ssl: true  # Set disable SSL to true if you are using local minio over http
       force_path_style: true  # Force s3 api path style
+      encryption:  # Client side encryption settings
+        enabled: true
+        key: 12345678901234567890123456789012  # 32 byte encryption key
 
 ```
 

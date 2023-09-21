@@ -34,11 +34,20 @@ storages:
     bucket_name: gitecho
     disable_ssl: true
     force_path_style: true
+    encryption:
+      enabled: true
+      key: "12345678901234567890123456789012"
 `
 
 func TestIntegration(t *testing.T) {
 
-	config, err := config.ParseConfigFile([]byte(yamlConfig))
+	configPath := "../config.dev.yaml"
+
+	config, err := config.ReadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
+
 	assert.NoError(t, err)
 
 	if !isS3StorageAvailable(config.Storages["test-storage"].Config.(*storage.S3StorageConfig)) {
@@ -50,11 +59,11 @@ func TestIntegration(t *testing.T) {
 
 	for _, repo := range config.Repositories {
 
-		repo.Storages = make([]storage.Storage, len(repo.StorageNames))
+		repo.Storages = make(map[string]storage.Storage, len(repo.StorageNames))
 
-		for i, storageName := range repo.StorageNames {
+		for _, storageName := range repo.StorageNames {
 			stor := config.Storages[storageName]
-			repo.Storages[i] = stor.Config
+			repo.Storages[storageName] = stor.Config
 		}
 
 		scheduler.ScheduleBackup(repo)

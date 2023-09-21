@@ -10,13 +10,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string            `yaml:"name"`
-	SrcRepo      *git.Repository   `yaml:"-"`
-	RemoteURL    string            `yaml:"remote_url"`
-	Schedule     string            `yaml:"schedule"`
-	StorageNames []string          `yaml:"storages"`
-	Storages     []storage.Storage `yaml:"-"`
-	LocalPath    string            `yaml:"-"`
+	Name         string                     `yaml:"name"`
+	SrcRepo      *git.Repository            `yaml:"-"`
+	RemoteURL    string                     `yaml:"remote_url"`
+	Schedule     string                     `yaml:"schedule"`
+	StorageNames []string                   `yaml:"storages"`
+	Storages     map[string]storage.Storage `yaml:"-"`
+	LocalPath    string                     `yaml:"-"`
 	Credentials  `yaml:"credentials"`
 }
 

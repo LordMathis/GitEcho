@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/LordMathis/GitEcho/pkg/encryption"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -23,6 +25,12 @@ type S3StorageConfig struct {
 	BucketName     string           `yaml:"bucket_name"`
 	DisableSSL     bool             `yaml:"disable_ssl"`
 	ForcePathStyle bool             `yaml:"force_path_style"`
+	Encryption     EncryptionConfig `yaml:"encryption"`
+}
+
+type EncryptionConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Key     string `yaml:"key"`
 }
 
 func getSession(endpoint, region, accessKey, secretKey string, disableSSL, forcePathStyle bool) (*session.Session, error) {
@@ -96,11 +104,28 @@ func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 		}
 		key := filepath.Join(relPath)
 
-		// Create the input parameters for the S3 PutObject operation
 		input := &s3.PutObjectInput{
 			Bucket: aws.String(s.BucketName),
 			Key:    aws.String(key),
 			Body:   f,
+		}
+
+		if s.Encryption.Enabled {
+			// Perform client-side encryption before uploading
+			encryptedData, err := encryption.EncryptData(f, []byte(s.Encryption.Key))
+			if err != nil {
+				return err
+			}
+
+			keyParts := strings.SplitN(key, "/", 2)
+
+			encryptedKey, err := encryption.ScrambleString(keyParts[1], []byte(s.Encryption.Key))
+			if err != nil {
+				return err
+			}
+
+			input.Body = aws.ReadSeekCloser(encryptedData)
+			input.Key = aws.String(fmt.Sprintf("%s/%s", keyParts[0], encryptedKey))
 		}
 
 		// Perform the S3 PutObject operation
@@ -119,14 +144,29 @@ func (s *S3StorageConfig) UploadDirectory(directoryPath string) error {
 func (s *S3StorageConfig) DownloadDirectory(remotePath, localPath string) error {
 	params := &s3.ListObjectsV2Input{
 		Bucket: aws.String(s.BucketName),
-		Prefix: aws.String(remotePath),
+		Prefix: aws.String(remotePath + "/"),
 	}
 
 	err := s.S3Client.ListObjectsV2Pages(params,
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 			for _, obj := range page.Contents {
 				// Construct the local file path
-				relPath, err := filepath.Rel(remotePath, *obj.Key)
+				remoteRelPath := *obj.Key
+
+				if s.Encryption.Enabled {
+
+					keyParts := strings.SplitN(*obj.Key, "/", 2)
+
+					decryptedKey, err := encryption.UnscrambleString(keyParts[1], []byte(s.Encryption.Key))
+					if err != nil {
+						fmt.Printf("Failed to decrypt object key: %v\n", err)
+						continue
+					}
+
+					remoteRelPath = filepath.Join(keyParts[0], decryptedKey)
+				}
+
+				relPath, err := filepath.Rel(remotePath, remoteRelPath)
 				if err != nil {
 					fmt.Printf("Failed to determine the relative path: %v\n", err)
 					continue
@@ -168,13 +208,22 @@ func (s *S3StorageConfig) downloadFile(s3Key, filePath string) error {
 	}
 	defer output.Body.Close()
 
+	var reader io.Reader = output.Body
+	if s.Encryption.Enabled {
+		decryptedData, err := encryption.DecryptData(output.Body, []byte(s.Encryption.Key))
+		if err != nil {
+			return fmt.Errorf("failed to decrypt file: %v", err)
+		}
+		reader = decryptedData
+	}
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create local file: %v", err)
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, output.Body)
+	_, err = io.Copy(file, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}

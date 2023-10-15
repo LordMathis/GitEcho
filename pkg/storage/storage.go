@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	_ "github.com/rclone/rclone/backend/all"
 	"github.com/rclone/rclone/backend/local"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/configmap"
@@ -13,11 +14,11 @@ import (
 type Storage struct {
 	fremote    fs.Fs  `yaml:"-"`
 	RemoteName string `yaml:"remote_name"`
-	configPath string `yaml:"config_path"`
+	RemotePath string `yaml:"remote_path"`
 }
 
 func (s *Storage) InitializeStorage() error {
-	fremote, err := fs.NewFs(context.Background(), s.RemoteName+":"+s.configPath)
+	fremote, err := fs.NewFs(context.Background(), s.RemoteName+":"+s.RemotePath)
 	if err != nil {
 		return err
 	}
@@ -28,7 +29,7 @@ func (s *Storage) InitializeStorage() error {
 
 func (s *Storage) UploadDirectory(ctx context.Context, repoName, localPath string) error {
 
-	flocal, err := local.NewFs(ctx, localPath, repoName, configmap.New())
+	flocal, err := local.NewFs(ctx, repoName, localPath, configmap.New())
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func (s *Storage) UploadDirectory(ctx context.Context, repoName, localPath strin
 
 func (s *Storage) DownloadDirectory(ctx context.Context, repoName, localPath string) error {
 
-	flocal, err := local.NewFs(ctx, localPath, repoName, configmap.New())
+	flocal, err := local.NewFs(ctx, repoName, localPath, configmap.New())
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func (s *Storage) DownloadDirectory(ctx context.Context, repoName, localPath str
 		return err
 	}
 
-	log.Printf("Directory '%s' uploaded to '%s' successfully.", localPath, s.fremote.String())
+	log.Printf("Directory '%s' downloaded from '%s' successfully.", localPath, s.fremote.String())
 	return nil
 
 }

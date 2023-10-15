@@ -11,7 +11,6 @@ import (
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/config"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 func main() {
@@ -46,16 +45,6 @@ func main() {
 	config, err := config.ReadConfig(*configPath)
 	if err != nil {
 		panic(err)
-	}
-
-	for _, repo := range config.Repositories {
-
-		repo.Storages = make(map[string]*storage.Storage, len(repo.StorageNames))
-
-		for _, storageName := range repo.StorageNames {
-			stor := config.Storages[storageName]
-			repo.Storages[storageName] = stor
-		}
 	}
 
 	if *restore {

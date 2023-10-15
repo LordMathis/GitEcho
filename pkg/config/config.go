@@ -11,14 +11,14 @@ import (
 type Config struct {
 	DataPath     string                            `yaml:"data_path"`
 	Repositories map[string]*repository.BackupRepo `yaml:"repositories"`
-	Storages     map[string]*storage.BaseStorage   `yaml:"storages"`
+	Storages     map[string]*storage.Storage       `yaml:"storages"`
 }
 
 func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 	var t struct {
 		DataPath     string                   `yaml:"data_path"`
 		Repositories []*repository.BackupRepo `yaml:"repositories"`
-		Storages     []*storage.BaseStorage   `yaml:"storages"`
+		Storages     []*storage.Storage       `yaml:"storages"`
 	}
 
 	err := value.Decode(&t)
@@ -28,7 +28,7 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 
 	c.DataPath = t.DataPath
 	c.Repositories = make(map[string]*repository.BackupRepo)
-	c.Storages = make(map[string]*storage.BaseStorage)
+	c.Storages = make(map[string]*storage.Storage)
 
 	for _, repo := range t.Repositories {
 		repo.LocalPath = c.DataPath + "/" + repo.Name
@@ -37,9 +37,11 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 	}
 
 	for _, stor := range t.Storages {
-		a := stor.Config
-		a.Initialize()
-		c.Storages[stor.Name] = stor
+		err = stor.InitializeStorage()
+		if err != nil {
+			return err
+		}
+		c.Storages[stor.RemoteName] = stor
 	}
 
 	return nil

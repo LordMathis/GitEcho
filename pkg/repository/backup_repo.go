@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
@@ -10,13 +11,13 @@ import (
 )
 
 type BackupRepo struct {
-	Name         string                     `yaml:"name"`
-	SrcRepo      *git.Repository            `yaml:"-"`
-	RemoteURL    string                     `yaml:"remote_url"`
-	Schedule     string                     `yaml:"schedule"`
-	StorageNames []string                   `yaml:"storages"`
-	Storages     map[string]storage.Storage `yaml:"-"`
-	LocalPath    string                     `yaml:"-"`
+	Name         string                      `yaml:"name"`
+	SrcRepo      *git.Repository             `yaml:"-"`
+	RemoteURL    string                      `yaml:"remote_url"`
+	Schedule     string                      `yaml:"schedule"`
+	StorageNames []string                    `yaml:"storages"`
+	Storages     map[string]*storage.Storage `yaml:"-"`
+	LocalPath    string                      `yaml:"-"`
 	Credentials  `yaml:"credentials"`
 }
 
@@ -26,7 +27,7 @@ type Credentials struct {
 	GitKeyPath  string `yaml:"key_path"`
 }
 
-func (b *BackupRepo) BackupAndUpload() error {
+func (b *BackupRepo) BackupAndUpload(ctx context.Context) error {
 	gitclient := gitutil.NewGitClient(b.Credentials.GitUsername, b.Credentials.GitPassword, b.Credentials.GitKeyPath)
 	err := gitclient.PullChanges(b.SrcRepo)
 	if err != nil {
@@ -36,7 +37,7 @@ func (b *BackupRepo) BackupAndUpload() error {
 	// Upload the local directory to S3
 	for _, stor := range b.Storages {
 
-		err := stor.UploadDirectory(b.LocalPath)
+		err := stor.UploadDirectory(ctx, b.Name, b.LocalPath)
 		if err != nil {
 			return err
 		}

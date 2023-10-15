@@ -1,71 +1,60 @@
 package storage
 
 import (
-	"github.com/LordMathis/GitEcho/pkg/encryption"
-	"gopkg.in/yaml.v3"
+	"context"
+	"log"
+
+	"github.com/rclone/rclone/backend/local"
+	"github.com/rclone/rclone/fs"
+	"github.com/rclone/rclone/fs/config/configmap"
+	"github.com/rclone/rclone/fs/sync"
 )
 
-type Uploader interface {
-	UploadDirectory(directoryPath string) error
+type Storage struct {
+	fremote    fs.Fs  `yaml:"-"`
+	RemoteName string `yaml:"remote_name"`
+	configPath string `yaml:"config_path"`
 }
 
-type Downloader interface {
-	DownloadDirectory(remotePath, localPath string) error
-}
-
-type Initializer interface {
-	Initialize() error
-}
-
-type Storage interface {
-	Uploader
-	Downloader
-	Initializer
-}
-
-type BaseStorage struct {
-	Name   string  `yaml:"name"`
-	Type   string  `yaml:"type"`
-	Config Storage `yaml:"config"`
-}
-
-func (b *BaseStorage) UnmarshalYAML(value *yaml.Node) error {
-
-	var t struct {
-		Name   string    `yaml:"name"`
-		Type   string    `yaml:"type"`
-		Config yaml.Node `yaml:"config"`
-	}
-
-	err := value.Decode(&t)
+func (s *Storage) InitializeStorage() error {
+	fremote, err := fs.NewFs(context.Background(), s.RemoteName+":"+s.configPath)
 	if err != nil {
 		return err
 	}
 
-	b.Name = t.Name
-	b.Type = t.Type
+	s.fremote = fremote
+	return nil
+}
 
-	switch b.Type {
-	case "s3":
-		var c struct {
-			Config S3StorageConfig `yaml:"config"`
-		}
+func (s *Storage) UploadDirectory(ctx context.Context, repoName, localPath string) error {
 
-		err := value.Decode(&c)
-		if err != nil {
-			return err
-		}
-
-		if c.Config.Encryption.Enabled {
-			err = encryption.ValidateEncryptionKey([]byte(c.Config.Encryption.Key))
-			if err != nil {
-				return err
-			}
-		}
-
-		b.Config = &c.Config
-
+	flocal, err := local.NewFs(ctx, localPath, repoName, configmap.New())
+	if err != nil {
+		return err
 	}
 
+	err = sync.Sync(ctx, s.fremote, flocal, true)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Directory '%s' uploaded to '%s' successfully.", localPath, s.fremote.String())
 	return nil
+}
+
+func (s *Storage) DownloadDirectory(ctx context.Context, repoName, localPath string) error {
+
+	flocal, err := local.NewFs(ctx, localPath, repoName, configmap.New())
+	if err != nil {
+		return err
+	}
+
+	err = sync.Sync(ctx, flocal, s.fremote, true)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Directory '%s' uploaded to '%s' successfully.", localPath, s.fremote.String())
+	return nil
+
 }

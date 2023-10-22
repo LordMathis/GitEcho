@@ -3,8 +3,8 @@ module github.com/LordMathis/GitEcho
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go v1.45.24
-	github.com/go-co-op/gocron v1.35.0
+	github.com/aws/aws-sdk-go v1.45.25
+	github.com/go-co-op/gocron v1.35.2
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1

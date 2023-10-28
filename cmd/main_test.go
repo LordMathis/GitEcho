@@ -14,7 +14,7 @@ import (
 
 func TestIntegration(t *testing.T) {
 
-	configPath := "../config.dev.yaml"
+	configPath := "../testdata/config-test.yaml"
 
 	config, err := config.ReadConfig(configPath)
 	if err != nil {
@@ -22,10 +22,6 @@ func TestIntegration(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
-
-	// if !isS3StorageAvailable(config.Storages["minio"]) {
-	// 	t.Skip("Minio is not available. Skipping integration test.")
-	// }
 
 	scheduler := backup.NewBackupScheduler()
 	scheduler.Start()
@@ -51,8 +47,3 @@ func TestIntegration(t *testing.T) {
 	err = gitClient.PullChanges(restoredRepo)
 	assert.NoError(t, err)
 }
-
-// func isS3StorageAvailable(stor *storage.Storage) bool {
-// 	// TODO: Fix this!
-// 	return stor != nil
-// }

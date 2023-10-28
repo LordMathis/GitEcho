@@ -1,5 +1,5 @@
 data_path: /tmp
-rclone_config_path: "../rclone-dev.conf"
+rclone_config_path: "../testdata/rclone-test.conf"
 repositories:
 - name: test-repo
   remote_url: "https://github.com/LordMathis/GitEcho"

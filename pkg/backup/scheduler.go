@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"log"
 	"strconv"
 	"sync"
@@ -66,12 +67,12 @@ func (d *BackupScheduler) ScheduleBackup(repo *repository.BackupRepo) {
 		if interval, err := strconv.Atoi(repo.Schedule); err == nil && interval > 0 {
 			// Schedule as minutes interval
 			d.cron.Every(uint64(interval)).Minutes().Do(func() {
-				repo.BackupAndUpload()
+				repo.BackupAndUpload(context.Background())
 			})
 		} else {
 			// Treat Schedule as a cron expression
 			_, err := d.cron.Cron(repo.Schedule).Do(func() {
-				repo.BackupAndUpload()
+				repo.BackupAndUpload(context.Background())
 			})
 			if err != nil {
 				log.Printf("Error scheduling backup for repo '%s': %v\n", repo.Name, err)

@@ -14,4 +14,4 @@ COPY --from=build /app/gitecho .
 
 # Set the entry point for the container
 ENTRYPOINT ["./gitecho"]
-EXPOSE 8080
+CMD ["-f", "config.yaml"]

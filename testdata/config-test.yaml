@@ -1,0 +1,10 @@
+data_path: /tmp
+rclone_config_path: "../testdata/rclone-test.conf"
+repositories:
+- name: test-repo
+  remote_url: "https://github.com/LordMathis/GitEcho"
+  schedule:  "*/1 * * * *"
+  storages:
+    test-storage:
+      remote_name: local
+      remote_path: test-repo

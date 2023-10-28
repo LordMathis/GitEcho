@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -10,14 +11,11 @@ import (
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/config"
-	"github.com/LordMathis/GitEcho/pkg/encryption"
-	"github.com/LordMathis/GitEcho/pkg/storage"
 )
 
 func main() {
 
 	configPath := flag.String("f", "config.yaml", "Path to the config file")
-	generateKey := flag.Bool("g", false, "Generate encryption key and exit")
 	restore := flag.Bool("r", false, "Restore from backup")
 	help := flag.Bool("h", false, "Print help and exit")
 
@@ -44,29 +42,9 @@ func main() {
 		return
 	}
 
-	if *generateKey {
-		key, err := encryption.GenerateEncryptionKey()
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		fmt.Println("Generated encryption key:", key)
-		return
-	}
-
 	config, err := config.ReadConfig(*configPath)
 	if err != nil {
 		panic(err)
-	}
-
-	for _, repo := range config.Repositories {
-
-		repo.Storages = make(map[string]storage.Storage, len(repo.StorageNames))
-
-		for _, storageName := range repo.StorageNames {
-			stor := config.Storages[storageName]
-			repo.Storages[storageName] = stor.Config
-		}
 	}
 
 	if *restore {
@@ -113,7 +91,7 @@ func restoreRepository(config *config.Config, repoName string, storageName strin
 	repo := config.Repositories[repoName]
 	stor := repo.Storages[storageName]
 
-	err := stor.DownloadDirectory(repo.Name, localPath)
+	err := stor.DownloadDirectory(context.Background(), repo.Name, localPath)
 	if err != nil {
 		return err
 	}

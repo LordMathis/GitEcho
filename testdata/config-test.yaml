@@ -6,5 +6,5 @@ repositories:
   schedule:  "*/1 * * * *"
   storages:
     test-storage:
-      remote_name: minio
-      remote_path: gitecho/test-repo
+      remote_name: local
+      remote_path: test-repo

@@ -15,23 +15,6 @@ on:
 
 jobs:
 
-  minio:
-    runs-on: ubuntu-latest
-    services:
-      minio:
-        image: minio/minio
-        ports:
-          - 9000:9000
-        options: --entrypoint "sh -c 'exec /usr/bin/minio server /data'"
-        env:
-          MINIO_ACCESS_KEY: "gitecho"
-          MINIO_SECRET_KEY: "gitechokey"
-
-    steps:
-    - name: Wait for Minio to start
-      run: sleep 15 # Wait for Minio to start properly
-
-
   build:
     runs-on: ubuntu-latest
     needs: minio

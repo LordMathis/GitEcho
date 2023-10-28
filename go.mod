@@ -3,7 +3,7 @@ module github.com/LordMathis/GitEcho
 go 1.20
 
 require (
-	github.com/go-co-op/gocron v1.35.0
+	github.com/go-co-op/gocron v1.35.2
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/rclone/rclone v1.64.0
 	github.com/stretchr/testify v1.8.4
@@ -153,6 +153,10 @@ require (
 	golang.org/x/term v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/api v0.134.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

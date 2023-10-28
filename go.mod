@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/go-co-op/gocron v1.35.2
-	github.com/go-git/go-git/v5 v5.9.0
-	github.com/rclone/rclone v1.64.0
+	github.com/go-git/go-git/v5 v5.10.0
+	github.com/rclone/rclone v1.64.2
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -161,8 +161,8 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	storj.io/common v0.0.0-20230602145716-d6ea82d58b3d // indirect
+	storj.io/common v0.0.0-20230907123639-5fd0608fd947 // indirect
 	storj.io/drpc v0.0.33 // indirect
-	storj.io/picobuf v0.0.1 // indirect
-	storj.io/uplink v1.11.0 // indirect
+	storj.io/picobuf v0.0.2-0.20230906122608-c4ba17033c6c // indirect
+	storj.io/uplink v1.12.0 // indirect
 )

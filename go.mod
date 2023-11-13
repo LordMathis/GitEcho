@@ -3,7 +3,7 @@ module github.com/LordMathis/GitEcho
 go 1.20
 
 require (
-	github.com/go-co-op/gocron v1.35.3
+	github.com/go-co-op/gocron v1.36.0
 	github.com/go-git/go-git/v5 v5.10.0
 	github.com/rclone/rclone v1.64.2
 	github.com/stretchr/testify v1.8.4

@@ -5,12 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/config"
+	"github.com/LordMathis/GitEcho/pkg/webhooks"
 )
 
 func main() {
@@ -73,6 +76,13 @@ func main() {
 		scheduler.ScheduleBackup(repo)
 	}
 
+	webhookServer := webhooks.NewWebhookServer(":8080")
+	go func() {
+		if err := webhookServer.ListenAndServe(); err != http.ErrServerClosed {
+			log.Println("Error during server ListenAndServe:", err)
+		}
+	}()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -81,6 +91,14 @@ func main() {
 	go func() {
 		<-sigs
 		scheduler.Stop()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := webhookServer.Shutdown(ctx); err != nil {
+			log.Println("Error during server shutdown:", err)
+		}
+
 		done <- true
 	}()
 

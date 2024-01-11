@@ -1,7 +1,7 @@
 package vendors
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 
 	"github.com/LordMathis/GitEcho/pkg/repository"
@@ -12,26 +12,35 @@ import (
 func NewGitHubHandler(config *webhooks.WebhookConfig, repo *repository.BackupRepo) func(http.ResponseWriter, *http.Request) {
 
 	hook, _ := github.New(github.Options.Secret(config.Secret))
+	var hookEvents []github.Event
+
+	for _, event := range config.Events {
+		switch event {
+		case "create":
+			hookEvents = append(hookEvents, github.CreateEvent)
+		case "push":
+			hookEvents = append(hookEvents, github.PushEvent)
+		case "pull_request":
+			hookEvents = append(hookEvents, github.PullRequestEvent)
+		case "release":
+			hookEvents = append(hookEvents, github.ReleaseEvent)
+		}
+	}
 
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		payload, err := hook.Parse(r, github.ReleaseEvent, github.PullRequestEvent)
+		payload, err := hook.Parse(r, hookEvents...)
 		if err != nil {
 			if err == github.ErrEventNotFound {
-				// ok event wasn't one of the ones asked to be parsed
+				return
 			}
 		}
-		switch payload.(type) {
 
-		case github.ReleasePayload:
-			release := payload.(github.ReleasePayload)
-			// Do whatever you want from here...
-			fmt.Printf("%+v", release)
-
-		case github.PullRequestPayload:
-			pullRequest := payload.(github.PullRequestPayload)
-			// Do whatever you want from here...
-			fmt.Printf("%+v", pullRequest)
+		if payload != nil {
+			go func() {
+				repo.BackupAndUpload(context.Background())
+			}()
 		}
+
 	}
 
 	return handleFunc

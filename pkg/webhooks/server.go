@@ -1,34 +1,34 @@
 package webhooks
 
 import (
+	"errors"
 	"net/http"
 )
 
 type WebhookServer struct {
 	*http.Server
+	apiPath string
 }
 
 func NewWebhookServer(addr string) *WebhookServer {
 
 	return &WebhookServer{
 		&http.Server{
-			Addr: addr,
+			Addr:    addr,
+			Handler: http.NewServeMux(),
 		},
+		"/api/v1/webhooks",
 	}
 }
 
-func (ws *WebhookServer) RegisterWebhookHandler(repo_name string, f func(http.ResponseWriter, *http.Request)) {
-	if ws.Handler == nil {
-		ws.Handler = http.NewServeMux()
-	}
+func (ws *WebhookServer) RegisterWebhookHandler(repo_name string, f func(http.ResponseWriter, *http.Request)) error {
 
 	// Register the handler function for the specified pattern
 	mux, ok := ws.Handler.(*http.ServeMux)
 	if !ok {
-		// If the current handler is not a ServeMux, create a new one
-		mux = http.NewServeMux()
-		ws.Handler = mux
+		return errors.New("server handler not defined")
 	}
 
-	mux.HandleFunc("/"+repo_name, f)
+	mux.HandleFunc(ws.apiPath+"/"+repo_name, f)
+	return nil
 }

@@ -89,6 +89,8 @@ func main() {
 				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGitHubHandler(repo.WebhookConfig, repo))
 			case "gitea":
 				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGiteaHandler(repo.WebhookConfig, repo))
+			case "gitlab":
+				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGitLabHandler(repo.WebhookConfig, repo))
 			default:
 				log.Printf("Unknown webhook vendor '%s'\n", repo.WebhookConfig.Vendor)
 			}

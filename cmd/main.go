@@ -87,6 +87,8 @@ func main() {
 			switch repo.WebhookConfig.Vendor {
 			case "github":
 				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGitHubHandler(repo.WebhookConfig, repo))
+			case "gitea":
+				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGiteaHandler(repo.WebhookConfig, repo))
 			default:
 				log.Printf("Unknown webhook vendor '%s'\n", repo.WebhookConfig.Vendor)
 			}

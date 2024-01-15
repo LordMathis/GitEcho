@@ -8,16 +8,18 @@ import (
 
 	"github.com/LordMathis/GitEcho/pkg/gitutil"
 	"github.com/LordMathis/GitEcho/pkg/storage"
+	"github.com/LordMathis/GitEcho/pkg/webhooks"
 )
 
 type BackupRepo struct {
-	Name        string                      `yaml:"name"`
-	SrcRepo     *git.Repository             `yaml:"-"`
-	RemoteURL   string                      `yaml:"remote_url"`
-	Schedule    string                      `yaml:"schedule"`
-	Storages    map[string]*storage.Storage `yaml:"storages"`
-	LocalPath   string                      `yaml:"-"`
-	Credentials `yaml:"credentials"`
+	Name          string                      `yaml:"name"`
+	SrcRepo       *git.Repository             `yaml:"-"`
+	RemoteURL     string                      `yaml:"remote_url"`
+	Schedule      string                      `yaml:"schedule"`
+	WebhookConfig *webhooks.WebhookConfig     `yaml:"webhook"`
+	Storages      map[string]*storage.Storage `yaml:"storages"`
+	LocalPath     string                      `yaml:"-"`
+	Credentials   `yaml:"credentials"`
 }
 
 type Credentials struct {
@@ -67,24 +69,3 @@ func (b *BackupRepo) Initialize() error {
 	b.SrcRepo = repo
 	return nil
 }
-
-// func ValidateBackupRepo(backupRepo BackupRepo) error {
-// 	// Define regular expression patterns for validation
-// 	namePattern := `^[a-zA-Z0-9_-]+$`
-
-// 	// Validate the Name field
-// 	if backupRepo.Name == "" {
-// 		return errors.New("name field is required")
-// 	}
-
-// 	if matched, _ := regexp.MatchString(namePattern, backupRepo.Name); !matched {
-// 		return errors.New("name field must consist of alphanumeric characters, hyphens, and underscores only")
-// 	}
-
-// 	// Validate the PullInterval field
-// 	if backupRepo.PullInterval <= 0 {
-// 		return errors.New("pullInterval field must be a positive integer")
-// 	}
-
-// 	return nil
-// }

@@ -5,12 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/LordMathis/GitEcho/pkg/backup"
 	"github.com/LordMathis/GitEcho/pkg/config"
+	"github.com/LordMathis/GitEcho/pkg/webhooks"
+	"github.com/LordMathis/GitEcho/pkg/webhooks/vendors"
 )
 
 func main() {
@@ -69,9 +73,35 @@ func main() {
 	scheduler := backup.NewBackupScheduler()
 	scheduler.Start()
 
+	webhookServer := webhooks.NewWebhookServer(":8080")
+
 	for _, repo := range config.Repositories {
-		scheduler.ScheduleBackup(repo)
+		if repo.Schedule != "" {
+			scheduler.ScheduleBackup(repo)
+			log.Printf("Scheduled backup for repo '%s' with schedule '%s'\n", repo.Name, repo.Schedule)
+		}
+
+		if repo.WebhookConfig != nil {
+			log.Printf("Registering webhook handler for repo '%s'\n", repo.Name)
+
+			switch repo.WebhookConfig.Vendor {
+			case "github":
+				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGitHubHandler(repo.WebhookConfig, repo))
+			case "gitea":
+				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGiteaHandler(repo.WebhookConfig, repo))
+			case "gitlab":
+				webhookServer.RegisterWebhookHandler(repo.Name, vendors.NewGitLabHandler(repo.WebhookConfig, repo))
+			default:
+				log.Printf("Unknown webhook vendor '%s'\n", repo.WebhookConfig.Vendor)
+			}
+		}
 	}
+
+	go func() {
+		if err := webhookServer.ListenAndServe(); err != http.ErrServerClosed {
+			log.Println("Error during server ListenAndServe:", err)
+		}
+	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -81,6 +111,14 @@ func main() {
 	go func() {
 		<-sigs
 		scheduler.Stop()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := webhookServer.Shutdown(ctx); err != nil {
+			log.Println("Error during server shutdown:", err)
+		}
+
 		done <- true
 	}()
 

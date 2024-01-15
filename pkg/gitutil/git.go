@@ -2,6 +2,7 @@ package gitutil
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/go-git/go-git/v5"
@@ -15,7 +16,12 @@ type GitClient struct {
 }
 
 func NewGitClient(username, password, keyPath string) *GitClient {
-	authMethod := GetAuth(username, password, keyPath)
+	authMethod, err := GetAuth(username, password, keyPath)
+
+	if err != nil {
+		log.Printf("failed to get authentication method: %v", err)
+	}
+
 	return &GitClient{
 		AuthMethod: authMethod,
 	}
@@ -67,19 +73,22 @@ func (g *GitClient) PullChanges(repo *git.Repository) error {
 	return nil
 }
 
-func GetAuth(username, password, keyPath string) transport.AuthMethod {
+func GetAuth(username, password, keyPath string) (transport.AuthMethod, error) {
 
 	if keyPath != "" {
-		auth, _ := ssh.NewPublicKeysFromFile("git", keyPath, "")
-		return auth
+		auth, err := ssh.NewPublicKeysFromFile("git", keyPath, "")
+		if err != nil {
+			return nil, err
+		}
+		return auth, nil
 	}
 
 	if username != "" && password != "" {
 		return &http.BasicAuth{
 			Username: username,
 			Password: password,
-		}
+		}, nil
 	}
 
-	return nil
+	return nil, nil
 }

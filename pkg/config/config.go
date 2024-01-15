@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 
 	"github.com/LordMathis/GitEcho/pkg/repository"
@@ -38,7 +39,12 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 
 	for _, repo := range t.Repositories {
 		repo.LocalPath = c.DataPath + "/" + repo.Name
-		repo.Initialize()
+		err := repo.Initialize()
+
+		if err != nil {
+			log.Printf("Error initializing repository '%s': %s\n", repo.Name, err)
+		}
+
 		c.Repositories[repo.Name] = repo
 		for _, stor := range repo.Storages {
 			err = stor.InitializeStorage()

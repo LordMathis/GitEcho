@@ -109,6 +109,8 @@ Vendor | Supported events
 [Gitea](https://docs.gitea.com/usage/webhooks) | "create", "push", "pull_request", "release"  
 [GitLab](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html) | "Push Hook", "Tag Push Hook", "Merge Request Hook"  
 
+The webhook server runs on port 8080. The url is "/api/v1/webhooks/<repository_name>"
+
 ### Credentials
 
 In case you GitEcho needs to authenticate to access the repository, you can specify either username and password or path the private ssh key. If the repository is public, you can omit this section

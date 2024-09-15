@@ -1,6 +1,6 @@
 module github.com/LordMathis/GitEcho
 
-go 1.20
+go 1.23
 
 require (
 	github.com/go-co-op/gocron v1.37.0

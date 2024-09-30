@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/go-co-op/gocron v1.37.0
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/rclone/rclone v1.68.0
+	github.com/rclone/rclone v1.68.1
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/yaml.v3 v3.0.1
 )
